@@ -53,7 +53,8 @@ All of this coexists with the original Splunk loop — Splunk watches the agent'
 - **Guardrail + write-back** (`security/governance_bridge.py`): the decision table is a pure function (`decide()`) — trivially unit-testable — with a 5-minute context cache and a `GUARDRAIL_MODE` env (off/warn/enforce). Write-back is fire-and-forget: governance must never break the agent loop.
 - **Agent wiring**: `DataHubPlugin` registered in the platform's plugin registry; guardrail pre-flight hooked into the data-tool path; verdicts attached to results.
 - **Demo Mode**: the public Streamlit app simulates a 5-dataset context graph deliberately covering all three verdicts, so judges can experience block/warn/allow with zero setup. Live mode connects to a real GMS via `DATAHUB_GMS_URL` + token (st.secrets), with per-service connection checks in the sidebar.
-- **Method**: full PDCA cycle with docs in-repo (plan → design → implementation → gap analysis → report). Gap analysis scored 30 design items at 90% match after one cleanup iteration.
+- **Method**: full PDCA cycle with docs in-repo (plan → design → implementation → gap analysis → report). Gap analysis scored 30 design items at 93% match after two iterations.
+- **Validated against a real DataHub quickstart** (GMS v1.5.0.6) with the official [healthcare sample dataset](https://github.com/datahub-project/static-assets/tree/main/datasets/healthcare): live NL ownership/lineage queries, guardrail WARN on the PII-tagged mart, and round-trip-verified `llmai:*` tag write-back — evidence in [`docs/live_spike_evidence.md`](live_spike_evidence.md). The spike even caught a real API constraint (tags must be created before association) that simulation couldn't.
 
 ## Challenges we ran into
 

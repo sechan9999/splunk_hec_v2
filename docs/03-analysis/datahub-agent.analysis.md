@@ -89,3 +89,24 @@ Cleanup pass applied after initial analysis:
 - ⏳ Item 30 (live spike) remains a user action before submission.
 
 **Final Match Rate: 90.0%** → proceed to `/pdca report datahub-agent`.
+
+---
+
+## Act-2 Addendum — Live Spike (2026-07-07, post-report)
+
+Item 30 **closed**: validated against a real DataHub quickstart (GMS v1.5.0.6)
+with the [healthcare sample dataset](https://github.com/datahub-project/static-assets/tree/main/datasets/healthcare)
+ingested (6 datasets, 5 lineage edges, pii/critical tags, 3 owner teams).
+Evidence: `docs/live_spike_evidence.md`.
+
+- ✅ Read path: search, NL ownership query, lineage — all live (522 ms first lookup)
+- ✅ Guardrail verdicts on live metadata: WARN (pii + DLP off), ALLOW (clean)
+- ✅ Write-back round-trip verified: `llmai:dlp-violation` and
+  `llmai:blocked-by-guardrail` tags visible on re-read from GMS
+- 🔧 Live-spike fix: `addTag` requires the tag entity to exist — `add_tag` now
+  create-then-associates (`createTag` idempotent + cached). Suites re-run green
+  (10/10 pytest, 55/55 AppTest).
+
+Re-scored: item 30 missing → match. `(27 + 0.5 × 2) / 30 = 93.3%`
+
+**Final Match Rate: 93.3%**

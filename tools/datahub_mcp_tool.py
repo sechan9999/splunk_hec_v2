@@ -107,6 +107,12 @@ mutation addTag($tagUrn: String!, $resourceUrn: String!) {
 }
 """
 
+_GQL_CREATE_TAG = """
+mutation createTag($id: String!, $name: String!, $description: String) {
+  createTag(input: {id: $id, name: $name, description: $description})
+}
+"""
+
 
 class DataHubGraphQLClient:
     """Thin GraphQL client for DataHub GMS (/api/graphql)."""
@@ -162,6 +168,7 @@ class DataHubMCPTool:
     def __init__(self, gms_url: str = "", token: str = ""):
         self._gql = DataHubGraphQLClient(gms_url, token)
         self._mcp_available = self._check_mcp_server()
+        self._known_tags: set = set()
 
     @property
     def configured(self) -> bool:
@@ -286,7 +293,16 @@ class DataHubMCPTool:
     # -- write path (governance write-back) ------------------------------
 
     def add_tag(self, resource_urn: str, tag_name: str) -> Dict:
+        # DataHub requires the tag entity to exist before association
+        # (addTag returns "Urn does not exist" otherwise — found in live spike).
         tag_urn = f"urn:li:tag:{tag_name}"
+        if tag_name not in self._known_tags:
+            created = self._gql.query(_GQL_CREATE_TAG, {
+                "id": tag_name, "name": tag_name,
+                "description": "Written by LLMai governance bridge"})
+            # "already exists" errors are fine; only cache on non-transport error
+            if "error" not in created or "exist" in str(created.get("error", "")):
+                self._known_tags.add(tag_name)
         data = self._gql.query(_GQL_ADD_TAG,
                                {"tagUrn": tag_urn, "resourceUrn": resource_urn})
         if "error" in data:
