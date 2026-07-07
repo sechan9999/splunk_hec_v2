@@ -50,7 +50,18 @@ MCPAgents                    Splunk Platform
 
 ## 📦 Project Structure
 
-### New Files
+### Demo App (v2 modular layout)
+
+| File | Role |
+|------|------|
+| `demo_app.py` | Streamlit entrypoint — page layout, sidebar mode switch, 6 tabs |
+| `demo_data.py` | Simulated data generators for Demo Mode (no backend needed) |
+| `backend_client.py` | Live-mode HTTP client — TLS-verified requests, per-service connection checks |
+| `styles.py` | CSS theme (dark glassmorphism) |
+| `ui/components.py` | KPI cards, journey guide, status badges, DLP rows, step pills |
+| `ui/charts.py` | Plotly chart builders + closed-loop architecture diagram |
+
+### Platform Files
 
 | File | Week | Description |
 |------|------|-------------|
@@ -76,11 +87,21 @@ MCPAgents                    Splunk Platform
 
 ## 📸 Screenshots
 
-| Splunk Dashboard Studio (12 panels over `index=mcp_agents`) |
-|---|
-| ![Splunk dashboard](assets/splunk_dashboard.png) |
+**Control Center — first screen** (guided journey, KPI bar, insights, Mission Control):
 
-The Control Center itself (Mission Control · AI Agent Lab · Live Threat Feed · ROI Impact · SPL Query Lab) is one click away at the [live demo](https://splunkhec2.streamlit.app/) — Demo Mode needs no setup.
+![Control Center home](assets/control_center_home.png)
+
+| AI Agent Lab — step-by-step tool loop | Auto-Remediation — fire an anomaly |
+|---|---|
+| ![Agent Lab](assets/agent_lab.png) | ![Auto-remediation](assets/auto_remediation.png) |
+
+| ROI Impact — adjustable assumptions | SPL Query Lab — chart + CSV export |
+|---|---|
+| ![ROI Impact](assets/roi_impact.png) | ![SPL Query Lab](assets/spl_query_lab.png) |
+
+**Splunk Dashboard Studio** (12 panels over `index=mcp_agents`):
+
+![Splunk dashboard](assets/splunk_dashboard.png)
 
 ---
 
@@ -240,6 +261,21 @@ Dashboard Studio definition: [`splunk_app/dashboards/mcp_agents_overview.json`](
 Import: **Splunk → Dashboards → Create New → Dashboard Studio → ⋮ Source → paste the JSON → Save.**
 
 > **LLMai — Agentic Ops Dashboard.** A single Dashboard Studio view over `index=mcp_agents`, the live HEC feed from the MCPAgents × Splunk platform. KPI tiles show 24-hour LLM spend, call volume, semantic-cache hit rate, and DLP violations; charts break cost and routing down by model; and tables surface anomalies that triggered autonomous remediation and every DLP event with its rule, sensitivity, and action taken. It makes the project's core innovation visible in one screen: the AI agent streams telemetry into Splunk, and Splunk's anomaly detection feeds back to reconfigure the agent — a closed observability loop.
+
+---
+
+## 🧪 Testing
+
+The demo app is verified headlessly with Streamlit's official test harness ([`streamlit.testing.v1.AppTest`](https://docs.streamlit.io/develop/api-reference/app-testing)) — no browser required. The suite covers all 6 tabs in both modes: script renders without exceptions, KPI stability across reruns, agent run + session history, anomaly fire + remediation result, SPL query with time-range filtering, ROI slider reactivity, and live-mode connection checks.
+
+```python
+from streamlit.testing.v1 import AppTest
+
+at = AppTest.from_file("demo_app.py", default_timeout=30)
+at.run()
+assert not at.exception
+assert len(at.tabs) == 6
+```
 
 ---
 

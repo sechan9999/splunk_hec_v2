@@ -29,6 +29,11 @@ from ui.components import (connection_status, dlp_alert_row, insights_strip,
 
 SPLUNK_DASHBOARD_URL = "http://localhost:8000/en-US/app/search/llmai_agentic_ops"
 
+
+def md_safe(text):
+    """Escape $ so Streamlit markdown doesn't treat $...$ pairs as LaTeX math."""
+    return str(text).replace("$", "\\$")
+
 # --- Page config --------------------------------------------------------------
 st.set_page_config(
     page_title="Agentic Ops Control Center",
@@ -231,7 +236,7 @@ with tab_agent:
                 st.success(f"✅ Completed in {elapsed:.2f}s")
                 res_obj = result.get("result", {})
                 if isinstance(res_obj, dict) and res_obj.get("response"):
-                    st.info(f"**Agent:** {res_obj['response']}")
+                    st.info(f"**Agent:** {md_safe(res_obj['response'])}")
                     st.session_state.setdefault("agent_history", []).append({
                         "time": datetime.now().strftime("%H:%M:%S"),
                         "query": query,
@@ -273,7 +278,7 @@ with tab_agent:
                      "result": {"response": "Run live queries from the box above."}}
             res = r.get("result", {})
             if isinstance(res, dict) and res.get("response"):
-                st.info(f"**Agent:** {res['response']}")
+                st.info(f"**Agent:** {md_safe(res['response'])}")
             for step in (res.get("tool_results", [])
                          if isinstance(res, dict) else []):
                 with st.expander(f"🔧 `{step.get('tool', '?')}`"):
@@ -284,7 +289,7 @@ with tab_agent:
         sec_header("Session History")
         for h in reversed(st.session_state["agent_history"][-5:]):
             with st.expander(f"🕐 {h['time']} — {h['query'][:60]}  ({h['elapsed']})"):
-                st.markdown(f"**Agent:** {h['response']}")
+                st.markdown(f"**Agent:** {md_safe(h['response'])}")
 
     st.divider()
     sec_header("Agent Performance (24h)")
