@@ -9,3 +9,4 @@ splunk_app/lookups/*.csv.bak
 # Dev tooling
 .bkit/
 .claude/
+demo_video/
