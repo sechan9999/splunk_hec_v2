@@ -1,17 +1,20 @@
-# 🔥 MCPAgents × Splunk — Agentic Ops Control Center (v2)
+# 🔥 Agentic Ops Control Center
+
+**Splunk observability and remediation for AI agents.**
+
+A local-first AI agent streams its own telemetry (cost, latency, DLP violations, errors) into Splunk — and Splunk reaches back to auto-remediate anomalies by re-weighting the agent's model router at runtime. A true closed loop: no silent leaks, no invisible overspend.
 
 > **v2 fork** of [sechan9999/splunk_hec](https://github.com/sechan9999/splunk_hec) — improved demo app.
 > The original repo and live app remain untouched.
 
 **v2 demo app improvements:**
+- First-screen guided journey ("What this demonstrates / Try these 3 actions / Why Splunk")
+- Clear Demo vs Live mode split with per-service connection status (MCPAgents, HEC, REST, SOAR)
+- ROI tab labeled as a simulated scenario with adjustable assumptions (baseline spend, cache hit rate)
 - Session-stable KPIs — numbers no longer re-randomize on every click
-- Fixed live-mode crashes (anomaly Fire button, non-JSON agent responses)
-- SPL Query Lab time-range selector now actually filters results
-- CSV export for SPL query results
-- Agent Lab session history (last 5 runs)
-- Auto-generated insights strip under the KPI bar (top cost driver, peak hour, cache savings)
-- Data-driven KPI deltas (computed from the time series, not hardcoded)
-- "What am I looking at?" 30-second onboarding tour
+- Modular codebase: `demo_app.py` + `demo_data.py` + `backend_client.py` + `styles.py` + `ui/`
+- TLS verification on by default (opt-out only, scoped, for local self-signed certs)
+- Fixed live-mode crashes; wired SPL time-range selector; CSV export; agent session history
 
 ---
 
@@ -25,7 +28,7 @@
 **👉 [https://splunkhec2.streamlit.app/](https://splunkhec2.streamlit.app/)** (v2)
 Original (v1): [https://splunkhec.streamlit.app/](https://splunkhec.streamlit.app/)
 
-The Streamlit Cloud deployment runs in **Demo Mode** by default — all 4 tabs (Agent Run, Live Splunk Events, Auto-Remediation, DLP/SOAR) work with simulated data. Toggle Demo Mode off in the sidebar to connect to real Splunk/MCPAgents backends.
+The Streamlit Cloud deployment runs in **Demo Mode** by default — all 6 tabs work with simulated data and every figure is clearly labeled as synthetic. Switch to **Live Mode** in the sidebar to connect real Splunk/MCPAgents backends (advanced setup panel with per-service connection checks).
 
 ---
 
@@ -71,13 +74,38 @@ MCPAgents                    Splunk Platform
 
 ---
 
+## 📸 Screenshots
+
+| Splunk Dashboard Studio (12 panels over `index=mcp_agents`) |
+|---|
+| ![Splunk dashboard](assets/splunk_dashboard.png) |
+
+The Control Center itself (Mission Control · AI Agent Lab · Live Threat Feed · ROI Impact · SPL Query Lab) is one click away at the [live demo](https://splunkhec2.streamlit.app/) — Demo Mode needs no setup.
+
+---
+
 ## 🚀 Quick Start
 
 ### Option A: Streamlit Cloud (Instant Demo)
 
 Visit **[https://splunkhec2.streamlit.app/](https://splunkhec2.streamlit.app/)** — Demo Mode is on by default. No setup required.
 
-### Option B: Local Development
+### Deployment matrix
+
+| Scenario | Install | Entrypoint |
+|---|---|---|
+| **Streamlit Cloud / local demo** | `pip install -r requirements.txt` | `streamlit run demo_app.py` |
+| **Full backend** (FastAPI + Splunk + agent) | `pip install -r requirements-full.txt` | `python main.py --server` |
+
+Streamlit Cloud reads `requirements.txt` automatically; the app entrypoint is `demo_app.py`. For Live Mode credentials on Streamlit Cloud, use [`st.secrets`](https://docs.streamlit.io/develop/concepts/connections/secrets-management) (Settings → Secrets) rather than typing tokens into the sidebar:
+
+```toml
+# .streamlit/secrets.toml (or the Streamlit Cloud Secrets UI)
+MCP_API_TOKEN = "..."
+SPLUNK_HEC_TOKEN = "..."
+```
+
+### Option B: Local Development (full backend)
 
 #### 1. Install Dependencies
 ```bash
@@ -102,7 +130,7 @@ docker-compose up
 ```bash
 streamlit run demo_app.py
 # → http://localhost:8501
-# Toggle Demo Mode OFF in sidebar to connect to live backends
+# Switch to "Live Mode" in the sidebar, open Advanced setup, then Check connections
 ```
 
 #### 5. Component Tests

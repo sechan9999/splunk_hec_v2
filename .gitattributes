@@ -1,0 +1,11 @@
+# Normalize line endings and keep text files UTF-8-clean across platforms
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.png binary
+*.pptx binary
