@@ -39,6 +39,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Session-stable RNG seed: without this every widget interaction reruns the
+# script and re-randomizes all KPIs, making the dashboard numbers jump around.
+if "demo_seed" not in st.session_state:
+    st.session_state.demo_seed = random.randint(0, 1_000_000)
+random.seed(st.session_state.demo_seed)
+
 st.markdown("""
 <style>
 /* ── Global ── */
@@ -279,6 +285,16 @@ def _post(url, **kw):
     except Exception:
         return None
 
+def _safe_json(resp, fallback_error):
+    """Parse a requests response defensively — backend may be down or non-JSON."""
+    if resp is None or not resp.ok:
+        return {"success": False, "handled": False, "error": fallback_error}
+    try:
+        return resp.json()
+    except Exception:
+        return {"success": False, "handled": False,
+                "error": f"Non-JSON response (HTTP {resp.status_code})"}
+
 def _demo_health():
     return {
         "status": "ok", "version": "2.0.0-splunk",
@@ -416,6 +432,19 @@ with col_b:
     if demo_mode:
         st.markdown('<span class="demo-badge">🎮 DEMO</span>', unsafe_allow_html=True)
 
+with st.expander("❓ What am I looking at? (30-second tour)"):
+    st.markdown(
+        "**LLMai / MCPAgents** is a local-first AI agent whose every LLM call, router "
+        "decision, cache hit, and DLP violation streams into **Splunk** (`index=mcp_agents`) — "
+        "and Splunk reaches back to auto-remediate anomalies. Explore the tabs:\n\n"
+        "- **Mission Control** — live cost / latency / cache observability\n"
+        "- **AI Agent Lab** — run natural-language queries through the agent\n"
+        "- **Live Threat Feed** — DLP violations, SOAR playbooks, and a *Fire an Anomaly* simulator\n"
+        "- **ROI Impact** — business value + the closed-loop architecture diagram\n"
+        "- **SPL Query Lab** — real SPL queries with charted results\n\n"
+        "Demo Mode is fully simulated — no credentials or backend needed."
+    )
+
 # ── Global KPI bar ────────────────────────────────────────────────────────────
 df24 = _gen_timeseries(hours=24)
 total_cost   = df24["cost"].sum()
@@ -424,12 +453,35 @@ cache_saved  = total_cost * 0.41
 dlp_blocked  = random.randint(11, 18)
 remediations = random.randint(8, 14)
 
+# Delta = last 12h vs first 12h of the generated window (data-driven, not hardcoded)
+_mid = df24["time"].min() + (df24["time"].max() - df24["time"].min()) / 2
+_recent, _earlier = df24[df24.time >= _mid]["cost"].sum(), df24[df24.time < _mid]["cost"].sum()
+_cost_delta = _recent - _earlier
+_cost_up = _cost_delta >= 0
+
 c1, c2, c3, c4, c5 = st.columns(5)
-c1.markdown(_kpi("LLM Cost (24h)", f"${total_cost:.2f}", "↑ $2.1 vs yesterday", "#f38ba8", False), unsafe_allow_html=True)
+c1.markdown(_kpi("LLM Cost (24h)", f"${total_cost:.2f}",
+                 f"{'↑' if _cost_up else '↓'} ${abs(_cost_delta):.2f} vs prior 12h",
+                 "#f38ba8" if _cost_up else "#a6e3a1", not _cost_up), unsafe_allow_html=True)
 c2.markdown(_kpi("LLM Calls",      f"{total_calls:,}",   f"↑ {random.randint(5,15)}%", "#89b4fa"), unsafe_allow_html=True)
 c3.markdown(_kpi("Cache Savings",  f"${cache_saved:.2f}", "↓ 41% cost reduction", "#a6e3a1"), unsafe_allow_html=True)
 c4.markdown(_kpi("DLP Blocked",    str(dlp_blocked),     f"↓ {random.randint(2,5)} vs avg", "#a6e3a1"), unsafe_allow_html=True)
 c5.markdown(_kpi("Remediations",   str(remediations),    "auto-healed", "#cba6f7"), unsafe_allow_html=True)
+
+# ── Auto-generated insights strip ─────────────────────────────────────────────
+_by_model = df24.groupby("model")["cost"].sum()
+_top_model, _top_cost = _by_model.idxmax(), _by_model.max()
+_peak_hour = df24.assign(h=df24["time"].dt.hour).groupby("h")["calls"].sum().idxmax()
+st.markdown(
+    f'<div style="background:#181825;border:1px solid #313244;border-radius:8px;'
+    f'padding:8px 16px;margin-top:10px;color:#9399b2;font-size:0.86em;">'
+    f'💡 <b style="color:#cdd6f4">Insights:</b> '
+    f'Top cost driver is <b style="color:{M_COLOR[_top_model]}">{_top_model}</b> '
+    f'(${_top_cost:.2f}, {_top_cost/total_cost*100:.0f}% of spend) · '
+    f'peak traffic at <b style="color:#cdd6f4">{_peak_hour:02d}:00</b> · '
+    f'semantic cache saved <b style="color:#a6e3a1">${cache_saved:.2f}</b> · '
+    f'{dlp_blocked} DLP blocks &amp; {remediations} auto-remediations in 24h'
+    f'</div>', unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -586,7 +638,7 @@ with tab_agent:
                     r = _post(f"{mcpagents_url}/agent/run",
                               json={"query": query, "user_id": user_id},
                               headers={"X-MCP-Token": api_token} if api_token else None)
-                    result = r.json() if r and r.ok else {"error": str(r), "success": False}
+                    result = _safe_json(r, f"Backend unreachable at {mcpagents_url}")
                 elapsed = time.time() - t0
 
             if result.get("success") is False or "error" in result:
@@ -596,6 +648,12 @@ with tab_agent:
                 res_obj = result.get("result", {})
                 if isinstance(res_obj, dict) and res_obj.get("response"):
                     st.info(f"**Agent:** {res_obj['response']}")
+                    st.session_state.setdefault("agent_history", []).append({
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                        "query": query,
+                        "response": res_obj["response"],
+                        "elapsed": f"{elapsed:.2f}s",
+                    })
                 tool_results = res_obj.get("tool_results", []) if isinstance(res_obj, dict) else []
                 if tool_results:
                     st.markdown("**Tool Calls**")
@@ -627,6 +685,13 @@ with tab_agent:
             for step in (res.get("tool_results", []) if isinstance(res, dict) else []):
                 with st.expander(f"🔧 `{step.get('tool','?')}`"):
                     st.json(step.get("result", ""))
+
+    if st.session_state.get("agent_history"):
+        st.divider()
+        st.markdown('<div class="sec-header">Session History</div>', unsafe_allow_html=True)
+        for h in reversed(st.session_state["agent_history"][-5:]):
+            with st.expander(f"🕐 {h['time']} — {h['query'][:60]}  ({h['elapsed']})"):
+                st.markdown(f"**Agent:** {h['response']}")
 
     st.divider()
     st.markdown('<div class="sec-header">Agent Performance (24h)</div>', unsafe_allow_html=True)
@@ -711,11 +776,13 @@ with tab_threat:
             st.caption(f"`{atype}` = {val:,}")
             if st.button("Fire", key=f"fire_{atype}", use_container_width=True):
                 with st.spinner("Sending alert…"):
-                    resp = (_demo_alert(atype, val) if demo_mode else
-                            (_post(f"{mcpagents_url}/splunk/alert",
-                                   json={"result": {"anomaly_type": atype, "metric_value": str(val)}},
-                                   headers={"X-MCP-Token": api_token} if api_token else None) or {}).json()
-                            if not demo_mode else _demo_alert(atype, val))
+                    if demo_mode:
+                        resp = _demo_alert(atype, val)
+                    else:
+                        r = _post(f"{mcpagents_url}/splunk/alert",
+                                  json={"result": {"anomaly_type": atype, "metric_value": str(val)}},
+                                  headers={"X-MCP-Token": api_token} if api_token else None)
+                        resp = _safe_json(r, f"Backend unreachable at {mcpagents_url}")
                 st.session_state[f"alert_{atype}"] = resp
 
     for label, (atype, _) in scenarios.items():
@@ -723,10 +790,13 @@ with tab_threat:
         if key in st.session_state:
             resp = st.session_state[key]
             with st.expander(f"✅ {label} — Remediation Result", expanded=True):
-                st.success(f"handled=True | value={resp.get('anomaly_value')} ≥ threshold={resp.get('threshold')}")
-                for act in resp.get("actions", []):
-                    st.markdown(f"- **{act['action']}** → `{act['result']}`")
-                st.caption(f"Cooldown: {resp.get('cooldown_sec')}s | HEC event emitted to index=mcp_agents")
+                if resp.get("handled"):
+                    st.success(f"handled=True | value={resp.get('anomaly_value')} ≥ threshold={resp.get('threshold')}")
+                    for act in resp.get("actions", []):
+                        st.markdown(f"- **{act['action']}** → `{act['result']}`")
+                    st.caption(f"Cooldown: {resp.get('cooldown_sec')}s | HEC event emitted to index=mcp_agents")
+                else:
+                    st.error(f"Alert not handled: {resp.get('error', resp)}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -862,9 +932,13 @@ with tab_spl:
         with st.spinner("Running…"):
             time.sleep(0.4)  # simulate round-trip
 
+        range_hours = {"-1h": 1, "-6h": 6, "-24h": 24, "-7d": 168}[q_range]
+        df_range = _gen_timeseries(hours=range_hours)
+        st.caption(f"⏱ earliest={q_range} · {len(df_range):,} raw events scanned")
+
         # ── Generate contextual demo results ──
         if "cost" in selected.lower() and "model" in selected.lower() and "timechart" not in selected.lower():
-            result_df = df24.groupby("model")["cost"].sum().reset_index()
+            result_df = df_range.groupby("model")["cost"].sum().reset_index()
             result_df.columns = ["model", "cost"]
             result_df = result_df.sort_values("cost", ascending=False)
             fig = px.bar(result_df, x="model", y="cost", color="model",
@@ -896,7 +970,7 @@ with tab_spl:
                          labels={"p95": "P95 Latency (ms)"})
 
         elif "timechart" in selected.lower() or "hourly" in selected.lower():
-            result_df = df24.groupby(["time", "model"])["cost"].sum().reset_index()
+            result_df = df_range.groupby(["time", "model"])["cost"].sum().reset_index()
             fig = px.line(result_df, x="time", y="cost", color="model",
                           color_discrete_map=M_COLOR, template="plotly_dark",
                           labels={"cost": "Cost (USD)", "time": ""})
@@ -921,6 +995,11 @@ with tab_spl:
         )
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(result_df, use_container_width=True, height=200)
+        st.download_button(
+            "⬇ Export results (CSV)",
+            result_df.to_csv(index=False).encode("utf-8"),
+            file_name="spl_results.csv", mime="text/csv",
+        )
 
         with st.expander("📋 SPL Query (copy)"):
             st.code(spl_query, language="text")

@@ -1,4 +1,19 @@
-# 🔥 MCPAgents × Splunk — Agentic Ops Control Center
+# 🔥 MCPAgents × Splunk — Agentic Ops Control Center (v2)
+
+> **v2 fork** of [sechan9999/splunk_hec](https://github.com/sechan9999/splunk_hec) — improved demo app.
+> The original repo and live app remain untouched.
+
+**v2 demo app improvements:**
+- Session-stable KPIs — numbers no longer re-randomize on every click
+- Fixed live-mode crashes (anomaly Fire button, non-JSON agent responses)
+- SPL Query Lab time-range selector now actually filters results
+- CSV export for SPL query results
+- Agent Lab session history (last 5 runs)
+- Auto-generated insights strip under the KPI bar (top cost driver, peak hour, cache savings)
+- Data-driven KPI deltas (computed from the time series, not hardcoded)
+- "What am I looking at?" 30-second onboarding tour
+
+---
 
 > **Splunk Agentic Ops Hackathon 2026** (May 18 – Jun 15, 2026)  
 > Built on: [sechan9999/MCPagents](https://github.com/sechan9999/MCPagents) + [sechan9999/splunk-app-examples](https://github.com/sechan9999/splunk-app-examples)
