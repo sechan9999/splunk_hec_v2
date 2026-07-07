@@ -88,6 +88,11 @@ agent plans supabase_query("visitors")
 
 New dependency policy: `acryl-datahub` goes in `requirements-full.txt` only; the demo app must not require it (Demo Mode simulates; live mode uses raw GraphQL over `requests`, already a dependency).
 
+> **Accepted deviation (Act-1, 2026-07-07):** no docker-compose `datahub`
+> service is bundled — DataHub's own multi-container quickstart
+> (`datahub docker quickstart`) is documented in `.env.example` instead.
+> Avoids shipping a heavy compose stack the demo path never needs.
+
 ---
 
 ## 3. Data Model
@@ -135,6 +140,12 @@ class GuardrailVerdict:
 | Guardrail block | `addTag` | tag `llmai:blocked-by-guardrail` (removed on next allow) |
 
 GraphQL fallback mutations use DataHub's standard `addTag` / `upsertStructuredProperties` endpoints; MCP path uses the equivalent MCP tools when the server exposes them.
+
+> **Accepted deviation (Act-1, 2026-07-07):** `upsert_property` currently falls
+> back to `add_tag` — the `upsertStructuredProperties` mutation surface varies
+> by DataHub version and is deferred to the live spike. FR-05 timeline events
+> are correspondingly partial (in-process event + tag). Intentional; revisit
+> after quickstart validation.
 
 ---
 

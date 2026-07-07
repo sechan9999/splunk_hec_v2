@@ -97,7 +97,12 @@ def demo_agent_run(query, render_steps):
             "response": (f"Cumulative visitors: {n:,} (+{random.randint(40, 320)} today). "
                          "Source: Supabase visitors table."),
             "tool_results": [{"tool": "supabase_query",
-                              "result": {"count": n, "table": "visitors"}}],
+                              "result": {"count": n, "table": "visitors",
+                                         "guardrail": {
+                                             "action": "allow", "reasons": [],
+                                             "context": {"owners":
+                                                         ["data-eng@llmai.dev"]},
+                                         }}}],
         }}
 
     if any(k in q for k in ["cost", "dlp", "error", "cache", "latency", "splunk"]):

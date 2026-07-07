@@ -257,6 +257,16 @@ with tab_agent:
                         with st.expander(f"🔧 `{step.get('tool', '?')}`"):
                             res = step.get("result", "")
                             if isinstance(res, dict):
+                                g = res.get("guardrail")
+                                if isinstance(g, dict):
+                                    owners = ((g.get("context") or {})
+                                              .get("owners") or [])
+                                    line = f"🧭 guardrail: {g.get('action', '?')}"
+                                    if g.get("reasons"):
+                                        line += f" — {'; '.join(g['reasons'])}"
+                                    if owners:
+                                        line += f" — owner {owners[0]}"
+                                    st.caption(line)
                                 st.json(res)
                             else:
                                 st.code(str(res)[:2000])

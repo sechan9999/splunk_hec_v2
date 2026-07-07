@@ -62,10 +62,10 @@ Enter the **Build with DataHub: The Agent Hackathon** (deadline **2026-08-10 17:
 | FR-02 | `DataHubPlugin` registered in `PLUGIN_REGISTRY["datahub"]`; agent can invoke `datahub_query` in its tool loop | High | Pending |
 | FR-03 | Pre-flight guardrail: before executing a data tool, agent checks target dataset in DataHub (deprecated? failing assertions? owner?) and annotates or blocks the call | High | Pending |
 | FR-04 | DLP violation → DataHub tag write-back (`dlp:violation`, severity, timestamp) on the affected dataset URN | High | Pending |
-| FR-05 | Auto-remediation events recorded as DataHub dataset properties / timeline events | Medium | Pending |
+| FR-05 | Auto-remediation events recorded as DataHub dataset properties / timeline events | Medium | Partial (accepted): in-process event + tag fallback; structured properties deferred to live spike |
 | FR-06 | Demo Mode: simulated DataHub context (lineage graph, owners, quality) in `demo_data.py`, zero backend required — consistent with existing demo philosophy | High | Pending |
 | FR-07 | Control Center surfaces DataHub context: lineage snippet, owner, quality badge per touched dataset | Medium | Pending |
-| FR-08 | docker-compose service for DataHub quickstart + `.env` wiring (`DATAHUB_GMS_URL`, `DATAHUB_TOKEN`) | Medium | Pending |
+| FR-08 | docker-compose service for DataHub quickstart + `.env` wiring (`DATAHUB_GMS_URL`, `DATAHUB_TOKEN`) | Medium | Accepted deviation: `datahub docker quickstart` CLI documented in `.env.example` instead of a bundled compose service |
 | FR-09 | Devpost submission: <3-min video, description, architecture diagram updated with DataHub plane | High | Pending |
 
 ### 3.2 Non-Functional Requirements
