@@ -39,11 +39,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Session-stable RNG seed: without this every widget interaction reruns the
-# script and re-randomizes all KPIs, making the dashboard numbers jump around.
+# Session-stable RNG: without this every widget interaction reruns the script
+# and re-randomizes all KPIs, making the dashboard numbers jump around.
+# Display numbers draw from RNG (a dedicated instance re-seeded each rerun) —
+# NOT the global `random` module, whose stream position shifts depending on
+# whether @st.cache_data generators hit or miss the cache.
 if "demo_seed" not in st.session_state:
     st.session_state.demo_seed = random.randint(0, 1_000_000)
 random.seed(st.session_state.demo_seed)
+RNG = random.Random(st.session_state.demo_seed)
 
 st.markdown("""
 <style>
@@ -450,8 +454,8 @@ df24 = _gen_timeseries(hours=24)
 total_cost   = df24["cost"].sum()
 total_calls  = df24["calls"].sum()
 cache_saved  = total_cost * 0.41
-dlp_blocked  = random.randint(11, 18)
-remediations = random.randint(8, 14)
+dlp_blocked  = RNG.randint(11, 18)
+remediations = RNG.randint(8, 14)
 
 # Delta = last 12h vs first 12h of the generated window (data-driven, not hardcoded)
 _mid = df24["time"].min() + (df24["time"].max() - df24["time"].min()) / 2
@@ -463,9 +467,9 @@ c1, c2, c3, c4, c5 = st.columns(5)
 c1.markdown(_kpi("LLM Cost (24h)", f"${total_cost:.2f}",
                  f"{'↑' if _cost_up else '↓'} ${abs(_cost_delta):.2f} vs prior 12h",
                  "#f38ba8" if _cost_up else "#a6e3a1", not _cost_up), unsafe_allow_html=True)
-c2.markdown(_kpi("LLM Calls",      f"{total_calls:,}",   f"↑ {random.randint(5,15)}%", "#89b4fa"), unsafe_allow_html=True)
+c2.markdown(_kpi("LLM Calls",      f"{total_calls:,}",   f"↑ {RNG.randint(5,15)}%", "#89b4fa"), unsafe_allow_html=True)
 c3.markdown(_kpi("Cache Savings",  f"${cache_saved:.2f}", "↓ 41% cost reduction", "#a6e3a1"), unsafe_allow_html=True)
-c4.markdown(_kpi("DLP Blocked",    str(dlp_blocked),     f"↓ {random.randint(2,5)} vs avg", "#a6e3a1"), unsafe_allow_html=True)
+c4.markdown(_kpi("DLP Blocked",    str(dlp_blocked),     f"↓ {RNG.randint(2,5)} vs avg", "#a6e3a1"), unsafe_allow_html=True)
 c5.markdown(_kpi("Remediations",   str(remediations),    "auto-healed", "#cba6f7"), unsafe_allow_html=True)
 
 # ── Auto-generated insights strip ─────────────────────────────────────────────
@@ -565,7 +569,7 @@ with tab_mc:
     with col_r:
         st.markdown('<div class="sec-header">Anomaly Density (24h)</div>', unsafe_allow_html=True)
         hours = list(range(24))
-        anomaly_counts = [max(0, int(random.gauss(
+        anomaly_counts = [max(0, int(RNG.gauss(
             3 * math.exp(-0.5 * ((h - 14) / 4) ** 2) + 0.5, 0.8))) for h in hours]
         fig_heat = go.Figure(go.Bar(
             x=hours, y=anomaly_counts,
@@ -696,10 +700,10 @@ with tab_agent:
     st.divider()
     st.markdown('<div class="sec-header">Agent Performance (24h)</div>', unsafe_allow_html=True)
     ap1, ap2, ap3, ap4 = st.columns(4)
-    ap1.metric("Avg Latency",   f"{random.randint(320,480)}ms",  f"-{random.randint(5,15)}%")
-    ap2.metric("Success Rate",  f"{random.uniform(96,99.5):.1f}%", "+0.8%")
-    ap3.metric("Cost / Query",  f"${random.uniform(0.012,0.035):.4f}", "-12%")
-    ap4.metric("Queries (24h)", f"{total_calls:,}", f"+{random.randint(5,18)}%")
+    ap1.metric("Avg Latency",   f"{RNG.randint(320,480)}ms",  f"-{RNG.randint(5,15)}%")
+    ap2.metric("Success Rate",  f"{RNG.uniform(96,99.5):.1f}%", "+0.8%")
+    ap3.metric("Cost / Query",  f"${RNG.uniform(0.012,0.035):.4f}", "-12%")
+    ap4.metric("Queries (24h)", f"{total_calls:,}", f"+{RNG.randint(5,18)}%")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -867,8 +871,8 @@ with tab_roi:
         st.markdown('<div class="sec-header">Daily Savings Trend (30d)</div>',
                     unsafe_allow_html=True)
         days = pd.date_range(end=datetime.now(), periods=30, freq="D")
-        baseline = [random.uniform(360, 420) for _ in range(30)]
-        actual   = [b * random.uniform(0.54, 0.62) for b in baseline]
+        baseline = [RNG.uniform(360, 420) for _ in range(30)]
+        actual   = [b * RNG.uniform(0.54, 0.62) for b in baseline]
         fig_sav = go.Figure()
         fig_sav.add_trace(go.Scatter(
             x=days, y=baseline, name="Baseline", line=dict(color="#f38ba8", width=2, dash="dash"),
