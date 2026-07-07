@@ -18,11 +18,12 @@
 > **Splunk Agentic Ops Hackathon 2026** (May 18 – Jun 15, 2026)  
 > Built on: [sechan9999/MCPagents](https://github.com/sechan9999/MCPagents) + [sechan9999/splunk-app-examples](https://github.com/sechan9999/splunk-app-examples)
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://splunkhec.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://splunkhec2.streamlit.app/)
 
 ## 🌐 Live Demo
 
-**👉 [https://splunkhec.streamlit.app/](https://splunkhec.streamlit.app/)**
+**👉 [https://splunkhec2.streamlit.app/](https://splunkhec2.streamlit.app/)** (v2)
+Original (v1): [https://splunkhec.streamlit.app/](https://splunkhec.streamlit.app/)
 
 The Streamlit Cloud deployment runs in **Demo Mode** by default — all 4 tabs (Agent Run, Live Splunk Events, Auto-Remediation, DLP/SOAR) work with simulated data. Toggle Demo Mode off in the sidebar to connect to real Splunk/MCPAgents backends.
 
@@ -74,7 +75,7 @@ MCPAgents                    Splunk Platform
 
 ### Option A: Streamlit Cloud (Instant Demo)
 
-Visit **[https://splunkhec.streamlit.app/](https://splunkhec.streamlit.app/)** — Demo Mode is on by default. No setup required.
+Visit **[https://splunkhec2.streamlit.app/](https://splunkhec2.streamlit.app/)** — Demo Mode is on by default. No setup required.
 
 ### Option B: Local Development
 
