@@ -81,6 +81,13 @@ All of this coexists with the original Splunk loop — Splunk watches the agent'
 - Guardrail verdicts emitted as HEC events so Splunk can alert on block-rate spikes — closing the loop between both planes
 - Lineage-aware blast-radius checks: refuse writes upstream of gold dashboards
 
+## Open-source contributions to DataHub (filed during the hackathon)
+
+Both discovered while building this submission against the quickstart:
+
+- [datahub-project/static-assets#211](https://github.com/datahub-project/static-assets/issues/211) — sample dataset scripts (`add_lineage.py`, `add_metadata.py`) crash on Windows (cp1252 `UnicodeEncodeError`); includes repro, workaround, and a suggested fix (PR offered).
+- [datahub-project/datahub#18246](https://github.com/datahub-project/datahub/issues/18246) — `addTag` DX for programmatic governance tagging: BAD_REQUEST for not-yet-created tags; documents the idempotent create-then-associate pattern and proposes `createIfNotExists` / docs note.
+
 ## Built with
 
 Python · DataHub (MCP Server + GraphQL/GMS) · Streamlit · FastAPI · Splunk (HEC, SOAR, CDTS) · Plotly · pytest + streamlit AppTest · Docker
