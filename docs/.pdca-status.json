@@ -1,11 +1,12 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-05-19T01:37:26.318Z",
+  "lastUpdated": "2026-07-07T18:40:41.394792Z",
   "activeFeatures": [
     "multi_llm_platform",
-    "enterprise_mcp_connector"
+    "enterprise_mcp_connector",
+    "datahub-agent"
   ],
-  "primaryFeature": null,
+  "primaryFeature": "datahub-agent",
   "features": {
     "MCPagents-splunk": {
       "phase": "archived",
@@ -62,6 +63,15 @@
       "archivedTo": "docs/archive/2026-05/endpoint-auth/",
       "timestamps": {
         "archivedAt": "2026-05-16T02:10:00.000Z"
+      }
+    },
+    "datahub-agent": {
+      "phase": "plan",
+      "phaseNumber": 1,
+      "startedAt": "2026-07-07T18:40:41.394792Z",
+      "lastUpdated": "2026-07-07T18:40:41.394792Z",
+      "documents": {
+        "plan": "docs/01-plan/features/datahub-agent.plan.md"
       }
     }
   },
