@@ -21,6 +21,8 @@ class BackendConfig:
     hec_url: str = "http://localhost:8088"
     splunk_index: str = "mcp_agents"
     soar_webhook: str = ""
+    datahub_gms: str = ""
+    datahub_token: str = ""
     verify_ssl: bool = True
 
     @property
@@ -89,5 +91,15 @@ def check_connections(cfg):
     status["Splunk SOAR"] = (
         ("ok", "webhook configured") if cfg.soar_webhook
         else ("unconfigured", "no webhook URL"))
+
+    if cfg.datahub_gms:
+        headers = ({"Authorization": f"Bearer {cfg.datahub_token}"}
+                   if cfg.datahub_token else None)
+        r = get(f"{cfg.datahub_gms.rstrip('/')}/health", cfg, headers=headers)
+        status["DataHub GMS"] = (
+            ("ok", "healthy") if r is not None and r.ok
+            else ("fail", "unreachable" if r is None else f"HTTP {r.status_code}"))
+    else:
+        status["DataHub GMS"] = ("unconfigured", "no GMS URL")
 
     return status

@@ -245,6 +245,7 @@ class AdvancedMCPAgent:
             "recall":        self._tool_recall,
             "splunk_query":  self._tool_splunk_query,
             "supabase_query": self._tool_supabase_query,
+            "datahub_query": self._tool_datahub_query,
         }
     
     async def execute(self, query: str, context: AgentContext = None) -> AgentResponse:
@@ -413,7 +414,14 @@ class AdvancedMCPAgent:
             "추세", "trend", "시간별", "hourly",
             "사용자별", "top user", "splunk",
         ]
-        if any(w in query_lower for w in splunk_keywords):
+        datahub_keywords = [
+            "owner", "who owns", "lineage", "upstream", "downstream",
+            "metadata", "datahub", "소유자", "리니지", "계보",
+        ]
+        if any(w in query_lower for w in datahub_keywords):
+            analysis["intent"] = "datahub_query"
+            analysis["requires_datahub"] = True
+        elif any(w in query_lower for w in splunk_keywords):
             analysis["intent"] = "splunk_query"
             analysis["requires_splunk"] = True
         elif any(w in query_lower for w in ["코드", "code", "implement", "구현", "함수", "function"]):
@@ -444,6 +452,8 @@ class AdvancedMCPAgent:
             tools.append("supabase_query")
         if analysis.get("requires_splunk"):
             tools.append("splunk_query")
+        if analysis.get("requires_datahub"):
+            tools.append("datahub_query")
         if analysis.get("requires_docs"):
             tools.append("get_docs")
         if analysis.get("requires_web"):
@@ -586,6 +596,29 @@ def process_data(data):
         except Exception as e:
             return {"error": str(e), "results": [], "summary": "Splunk query failed"}
 
+    async def _tool_datahub_query(self, query: str, context: AgentContext) -> Dict:
+        """DataHub context-graph 쿼리 도구 (ownership/lineage/quality)"""
+        try:
+            from tools.datahub_mcp_tool import DataHubMCPTool
+            tool = DataHubMCPTool()
+            return tool.execute(query)
+        except Exception as e:
+            return {"error": str(e), "results": [],
+                    "summary": "DataHub query failed"}
+
+    def _guardrail_preflight(self, table: str) -> Dict:
+        """Metadata guardrail before data-tool calls (degrades to allow)."""
+        try:
+            from security.governance_bridge import get_guardrail, get_governance_bridge
+            verdict = get_guardrail().check(table)
+            if verdict.action == "block" and verdict.context is not None:
+                get_governance_bridge().record_block(
+                    verdict.context.urn, verdict.reasons)
+            return verdict.to_dict()
+        except Exception as e:
+            return {"action": "allow",
+                    "reasons": [f"guardrail unavailable: {e}"], "context": None}
+
     async def _tool_supabase_query(self, query: str, context: AgentContext) -> Dict:
         """Supabase 누적 방문자 조회 도구.
 
@@ -599,12 +632,23 @@ def process_data(data):
         key   = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_KEY", "")
         table = os.getenv("SUPABASE_VISITORS_TABLE", "visitors")
 
+        guardrail = self._guardrail_preflight(table)
+        if guardrail["action"] == "block":
+            owners = (guardrail.get("context") or {}).get("owners") or []
+            return {
+                "source": "guardrail", "metric": "cumulative_visitors",
+                "count": None, "guardrail": guardrail,
+                "summary": (f"Blocked by metadata guardrail: "
+                            f"{'; '.join(guardrail['reasons'])}. "
+                            f"Contact owner: {', '.join(owners) or 'unknown'}."),
+            }
+
         if not url or not key:
             import random
             n = random.randint(5000, 50000)
             return {
                 "source": "demo", "metric": "cumulative_visitors",
-                "count": n, "table": table,
+                "count": n, "table": table, "guardrail": guardrail,
                 "summary": (f"[Demo] Cumulative visitors: {n:,} "
                             f"(SUPABASE_URL/KEY not set — simulated). "
                             f"Real data: set env vars; total rows in {table}."),
@@ -636,7 +680,7 @@ def process_data(data):
                     total = 0
             return {
                 "source": "supabase", "metric": "cumulative_visitors",
-                "count": total, "table": table,
+                "count": total, "table": table, "guardrail": guardrail,
                 "summary": f"Cumulative visitors: {total:,} (Supabase {table}).",
             }
         except Exception as e:

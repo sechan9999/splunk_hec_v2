@@ -136,6 +136,95 @@ def demo_agent_run(query, render_steps):
     }}
 
 
+@st.cache_data(ttl=60)
+def gen_datahub_context():
+    """Simulated DataHub context graph: one dataset per guardrail verdict.
+
+    Keys mirror tools.datahub_mcp_tool.DatasetContext.to_dict() plus a
+    precomputed 'verdict' so the UI can demo allow/warn/block paths.
+    """
+    def urn(platform, name):
+        return f"urn:li:dataset:(urn:li:dataPlatform:{platform},{name},PROD)"
+
+    return {
+        "visitors": {
+            "urn": urn("supabase", "visitors"), "name": "visitors",
+            "platform": "supabase", "owners": ["data-eng@llmai.dev"],
+            "deprecated": False, "tags": ["gold", "product-analytics"],
+            "assertions_passing": True,
+            "upstream": [urn("kafka", "web_events")],
+            "downstream": [urn("looker", "traffic_dashboard")],
+            "verdict": {"action": "allow", "reasons": []},
+        },
+        "llm_costs": {
+            "urn": urn("postgres", "llm_costs"), "name": "llm_costs",
+            "platform": "postgres", "owners": ["platform-team@llmai.dev"],
+            "deprecated": False, "tags": ["gold", "finops"],
+            "assertions_passing": True,
+            "upstream": [urn("splunk", "mcp_agents_index")],
+            "downstream": [urn("looker", "cost_dashboard")],
+            "verdict": {"action": "allow", "reasons": []},
+        },
+        "patients_pii": {
+            "urn": urn("postgres", "patients_pii"), "name": "patients_pii",
+            "platform": "postgres", "owners": ["health-data@llmai.dev"],
+            "deprecated": False, "tags": ["pii", "restricted", "hipaa"],
+            "assertions_passing": True,
+            "upstream": [urn("s3", "raw_intake")],
+            "downstream": [],
+            "verdict": {"action": "warn",
+                        "reasons": ["PII-tagged dataset - DLP scan enforced"]},
+        },
+        "user_features_v1": {
+            "urn": urn("s3", "user_features_v1"), "name": "user_features_v1",
+            "platform": "s3", "owners": ["ml-team@llmai.dev"],
+            "deprecated": False, "tags": ["ml-features"],
+            "assertions_passing": False,
+            "upstream": [urn("postgres", "llm_costs")],
+            "downstream": [urn("mlflow", "router_model")],
+            "verdict": {"action": "warn",
+                        "reasons": ["failing quality assertions"]},
+        },
+        "legacy_metrics": {
+            "urn": urn("mysql", "legacy_metrics"), "name": "legacy_metrics",
+            "platform": "mysql", "owners": ["data-eng@llmai.dev"],
+            "deprecated": True, "tags": ["deprecated"],
+            "assertions_passing": None,
+            "upstream": [], "downstream": [],
+            "verdict": {"action": "block",
+                        "reasons": ["dataset deprecated "
+                                    "(owners: data-eng@llmai.dev)"]},
+        },
+    }
+
+
+@st.cache_data(ttl=60)
+def gen_governance_events(n=12):
+    """Simulated governance write-back feed (DLP tags, remediation props)."""
+    ctx = gen_datahub_context()
+    kinds = [
+        ("dlp_violation", "llmai:dlp-violation", "patients_pii"),
+        ("remediation", "llmai:last-remediation", "llm_costs"),
+        ("guardrail_block", "llmai:blocked-by-guardrail", "legacy_metrics"),
+        ("dlp_violation", "llmai:dlp-violation", "visitors"),
+    ]
+    now = datetime.now()
+    rows = []
+    for _ in range(n):
+        event, tag, ds = random.choice(kinds)
+        ts = now - timedelta(seconds=random.randint(60, 86400))
+        rows.append({
+            "time": ts.strftime("%H:%M:%S"),
+            "event": event,
+            "tag_written": tag,
+            "dataset": ds,
+            "urn": ctx[ds]["urn"],
+            "ts": ts,
+        })
+    return (pd.DataFrame(rows).sort_values("ts", ascending=False)
+            .drop(columns="ts"))
+
+
 def demo_alert(anomaly_type, value):
     """Simulated auto-remediation response for a fired anomaly alert."""
     thresholds = {"cost_spike": 5.0, "latency_spike": 3000,

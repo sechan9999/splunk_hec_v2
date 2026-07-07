@@ -50,11 +50,23 @@ MCPAgents                    Splunk Platform
 
 ## 📦 Project Structure
 
+### DataHub Layer (datahub-agent feature)
+
+The agent consults the **DataHub context graph** before acting and writes governance events back:
+
+| File | Role |
+|------|------|
+| `tools/datahub_mcp_tool.py` | NL → DataHub queries (search/ownership/lineage/quality); MCP server preferred, GraphQL fallback |
+| `security/governance_bridge.py` | `MetadataGuardrail` (pre-flight allow/warn/block per decision table) + `GovernanceBridge` (DLP/remediation → `llmai:*` tags) |
+| Data Context tab | ownership, quality, guardrail verdict, lineage, and the governance write-back feed |
+
+Configure with `DATAHUB_GMS_URL` / `DATAHUB_TOKEN` / `GUARDRAIL_MODE` (see `.env.example`); fully simulated in Demo Mode, degrades to no-op when unset.
+
 ### Demo App (v2 modular layout)
 
 | File | Role |
 |------|------|
-| `demo_app.py` | Streamlit entrypoint — page layout, sidebar mode switch, 6 tabs |
+| `demo_app.py` | Streamlit entrypoint — page layout, sidebar mode switch, 7 tabs |
 | `demo_data.py` | Simulated data generators for Demo Mode (no backend needed) |
 | `backend_client.py` | Live-mode HTTP client — TLS-verified requests, per-service connection checks |
 | `styles.py` | CSS theme (dark glassmorphism) |

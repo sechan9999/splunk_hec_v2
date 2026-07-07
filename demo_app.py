@@ -71,6 +71,7 @@ with st.sidebar:
             "Splunk HEC": ("unconfigured", "simulated"),
             "Splunk REST": ("unconfigured", "simulated"),
             "Splunk SOAR": ("unconfigured", "simulated"),
+            "DataHub GMS": ("unconfigured", "simulated"),
         })
     else:
         with st.expander("🔧 Advanced setup", expanded=False):
@@ -83,6 +84,9 @@ with st.sidebar:
             cfg.hec_url = st.text_input("HEC URL", cfg.hec_url)
             cfg.splunk_index = st.text_input("Index", cfg.splunk_index)
             cfg.soar_webhook = st.text_input("SOAR Webhook URL (optional)", "")
+            cfg.datahub_gms = st.text_input("DataHub GMS URL (optional)", "")
+            cfg.datahub_token = st.text_input("DataHub Token", "",
+                                              type="password")
             cfg.verify_ssl = st.checkbox(
                 "Verify TLS certificates", value=True,
                 help="Disable ONLY for local dev against self-signed Splunk "
@@ -160,12 +164,14 @@ insights_strip(_top_model, M_COLOR[_top_model], _by_model.max(), total_cost,
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- Tabs ---------------------------------------------------------------------
-tab_mc, tab_agent, tab_threat, tab_roi, tab_spl, tab_overview = st.tabs([
+(tab_mc, tab_agent, tab_threat, tab_roi, tab_spl,
+ tab_context, tab_overview) = st.tabs([
     "🎯 Mission Control",
     "🤖 AI Agent Lab",
     "🔴 Live Threat Feed",
     "💰 ROI Impact",
     "🔧 SPL Query Lab",
+    "🧭 Data Context",
     "🏠 Splunk Overview",
 ])
 
@@ -573,7 +579,56 @@ with tab_spl:
     for key, val in ref_data.items():
         st.markdown(f"**{key}:** `{val}`")
 
-# --- Tab 6: Splunk Overview -----------------------------------------------------
+# --- Tab 6: Data Context (DataHub) ------------------------------------------------
+with tab_context:
+    sec_header("Dataset Context — what the agent knows before it acts")
+    st.caption("DataHub context graph: ownership · lineage · quality · guardrail "
+               "verdicts. The agent consults this before every data-tool call, "
+               "and writes DLP/remediation events back as `llmai:*` tags.")
+
+    dh_ctx = demo_data.gen_datahub_context()
+    ds_name = st.selectbox("Dataset touched by agent", list(dh_ctx.keys()))
+    ds = dh_ctx[ds_name]
+
+    v_action = ds["verdict"]["action"]
+    v_color = {"allow": "#a6e3a1", "warn": "#fab387", "block": "#f38ba8"}[v_action]
+    v_reason = "; ".join(ds["verdict"]["reasons"]) or "no policy findings"
+    if ds["assertions_passing"] is True:
+        q_val, q_color, q_note = "PASSING", "#a6e3a1", "assertions green"
+    elif ds["assertions_passing"] is False:
+        q_val, q_color, q_note = "FAILING", "#f38ba8", "assertions red"
+    else:
+        q_val, q_color, q_note = "N/A", "#6c7086", "no assertions defined"
+
+    cc1, cc2, cc3 = st.columns(3)
+    cc1.markdown(kpi("Owner", ds["owners"][0].split("@")[0] if ds["owners"]
+                     else "unknown", ds["owners"][0] if ds["owners"] else "",
+                     "#89b4fa"), unsafe_allow_html=True)
+    cc2.markdown(kpi("Quality", q_val, q_note, q_color), unsafe_allow_html=True)
+    cc3.markdown(kpi("Guardrail", v_action.upper(), v_reason, v_color,
+                     v_action == "allow"), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    sec_header("Lineage (depth 1)")
+    _short = lambda u: u.split(",")[1] if "," in u else u
+    up = " · ".join(_short(u) for u in ds["upstream"]) or "—"
+    down = " · ".join(_short(u) for u in ds["downstream"]) or "—"
+    tags = " ".join(f"`{t}`" for t in ds["tags"]) or "—"
+    st.markdown(f"⬆ **Upstream:** {up}  \n"
+                f"🎯 **This dataset:** `{ds['name']}` ({ds['platform']}) — "
+                f"deprecated: {'yes ⚠' if ds['deprecated'] else 'no'}  \n"
+                f"⬇ **Downstream:** {down}  \n"
+                f"🏷 **Tags:** {tags}")
+    st.caption(f"URN: `{ds['urn']}`")
+
+    st.divider()
+    sec_header("Governance Write-back Feed — llmai:* tags in DataHub")
+    st.dataframe(demo_data.gen_governance_events(), width="stretch", height=240)
+    st.caption("Every DLP violation, remediation, and guardrail block the agent "
+               "produces is recorded on the affected dataset in DataHub — the "
+               "context graph doubles as the audit trail.")
+
+# --- Tab 7: Splunk Overview -----------------------------------------------------
 with tab_overview:
     sec_header("Splunk Dashboard — LLMai Agentic Ops")
     st.caption("Splunk Dashboard Studio over `index=mcp_agents` — closed-loop "

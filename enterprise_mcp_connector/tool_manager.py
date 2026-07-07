@@ -292,12 +292,62 @@ class SplunkPlugin(MCPServerPlugin):
         raise ValueError(f"Unknown method: {method}")
 
 
+class DataHubPlugin(MCPServerPlugin):
+    """DataHub context-graph plugin — DataHubMCPTool wrapper"""
+
+    def __init__(self, config: ToolConfig):
+        super().__init__(config)
+        from tools.datahub_mcp_tool import DataHubMCPTool
+        self._datahub = DataHubMCPTool()
+        self._methods = {
+            "datahub_query": ToolMethod(
+                name="datahub_query",
+                description="Natural language query on the DataHub context graph "
+                            "(dataset search, ownership, lineage, quality)",
+                parameters={
+                    "query": {"type": "string"},
+                },
+                returns={"results": "array", "method": "string"},
+                requires_permission=PermissionLevel.READ_ONLY,
+            ),
+            "datahub_context": ToolMethod(
+                name="datahub_context",
+                description="Full DatasetContext (owners, deprecation, tags, "
+                            "assertions, lineage) for a dataset URN",
+                parameters={
+                    "urn": {"type": "string"},
+                },
+                returns={"context": "object"},
+                requires_permission=PermissionLevel.READ_ONLY,
+            ),
+        }
+
+    async def connect(self) -> bool:
+        self.config.status = ToolStatus.ACTIVE
+        return True
+
+    async def disconnect(self) -> None:
+        self.config.status = ToolStatus.INACTIVE
+
+    async def health_check(self) -> bool:
+        return self._datahub.configured
+
+    async def call(self, method: str, params: Dict) -> Any:
+        if method == "datahub_query":
+            return self._datahub.execute(**params)
+        if method == "datahub_context":
+            ctx = self._datahub.get_context(params["urn"])
+            return {"context": ctx.to_dict() if ctx else None}
+        raise ValueError(f"Unknown method: {method}")
+
+
 # 플러그인 레지스트리
 PLUGIN_REGISTRY: Dict[str, type] = {
     "google_drive": GoogleDrivePlugin,
     "slack":        SlackPlugin,
     "github":       GitHubPlugin,
     "splunk":       SplunkPlugin,
+    "datahub":      DataHubPlugin,
 }
 
 

@@ -40,10 +40,11 @@ def journey_section():
     </div>""", unsafe_allow_html=True)
     j3.markdown("""
     <div class="journey-card">
-      <div class="journey-title">Why Splunk matters here</div>
-      HEC ingests 8 agent event types into <code>index=mcp_agents</code>;
-      CDTS detects anomalies; SOAR playbooks respond to DLP violations.
-      Without this loop an agent leaks silently and overspends invisibly.
+      <div class="journey-title">Why Splunk + DataHub matter</div>
+      Splunk HEC ingests 8 agent event types; CDTS detects anomalies; SOAR
+      responds to DLP. DataHub adds the metadata brain: guardrails consult
+      ownership/quality before the agent acts, and violations are written
+      back to the context graph.
     </div>""", unsafe_allow_html=True)
 
 
