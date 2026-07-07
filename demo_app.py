@@ -16,7 +16,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import streamlit as st
-import streamlit.components.v1 as components
 from plotly.subplots import make_subplots
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -524,7 +523,7 @@ with tab_mc:
         height=280, margin=dict(l=0, r=0, t=30, b=0),
     )
     fig_cost.update_traces(line_width=2.5)
-    st.plotly_chart(fig_cost, use_container_width=True)
+    st.plotly_chart(fig_cost, width='stretch')
 
     col_l, col_m, col_r = st.columns([1, 1, 1])
 
@@ -543,7 +542,7 @@ with tab_mc:
             height=240, margin=dict(l=0, r=0, t=10, b=10),
         )
         fig_pie.update_traces(textposition="inside", textinfo="percent")
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width='stretch')
 
     # Cache hit/miss bar
     with col_m:
@@ -563,7 +562,7 @@ with tab_mc:
             height=240, margin=dict(l=0, r=0, t=10, b=10),
             yaxis=dict(showgrid=False, visible=False),
         )
-        st.plotly_chart(fig_cache, use_container_width=True)
+        st.plotly_chart(fig_cache, width='stretch')
 
     # Hourly anomaly heatmap
     with col_r:
@@ -586,7 +585,7 @@ with tab_mc:
             yaxis=dict(title="Events", showgrid=False),
             height=240, margin=dict(l=0, r=0, t=10, b=10),
         )
-        st.plotly_chart(fig_heat, use_container_width=True)
+        st.plotly_chart(fig_heat, width='stretch')
 
     # Latency percentile chart
     st.markdown('<div class="sec-header">Latency Distribution by Model (p50 / p95 / p99)</div>', unsafe_allow_html=True)
@@ -610,7 +609,7 @@ with tab_mc:
         height=260, margin=dict(l=0, r=0, t=30, b=0),
         yaxis=dict(title="Latency (ms)", showgrid=True, gridcolor="#313244"),
     )
-    st.plotly_chart(fig_lat, use_container_width=True)
+    st.plotly_chart(fig_lat, width='stretch')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -630,7 +629,7 @@ with tab_agent:
 
     steps_area = st.empty()
 
-    if st.button("▶ Run Agent", type="primary", use_container_width=True):
+    if st.button("▶ Run Agent", type="primary", width='stretch'):
         if not query.strip():
             st.warning("Enter a query.")
         else:
@@ -680,7 +679,7 @@ with tab_agent:
     ]
     q_cols = st.columns(len(quick_prompts))
     for i, qp in enumerate(quick_prompts):
-        if q_cols[i].button(qp, key=f"qp_{i}", use_container_width=True):
+        if q_cols[i].button(qp, key=f"qp_{i}", width='stretch'):
             ph = st.empty()
             r = _demo_agent_run(qp, ph) if demo_mode else {"success": False, "result": {"response": "Backend offline"}}
             res = r.get("result", {})
@@ -747,7 +746,7 @@ with tab_threat:
             margin=dict(l=0, r=0, t=0, b=0),
             showlegend=True, legend=dict(orientation="h", y=-0.1),
         )
-        st.plotly_chart(fig_sev, use_container_width=True)
+        st.plotly_chart(fig_sev, width='stretch')
 
         st.markdown('<div class="sec-header">SOAR Auto-Response</div>', unsafe_allow_html=True)
         soar_actions = [
@@ -778,7 +777,7 @@ with tab_threat:
         with s_cols[i]:
             st.markdown(f"**{label}**")
             st.caption(f"`{atype}` = {val:,}")
-            if st.button("Fire", key=f"fire_{atype}", use_container_width=True):
+            if st.button("Fire", key=f"fire_{atype}", width='stretch'):
                 with st.spinner("Sending alert…"):
                     if demo_mode:
                         resp = _demo_alert(atype, val)
@@ -864,7 +863,7 @@ with tab_roi:
             height=300, margin=dict(l=0, r=0, t=20, b=0),
             yaxis=dict(title="Cost (USD)", gridcolor="#313244"),
         )
-        st.plotly_chart(wf, use_container_width=True)
+        st.plotly_chart(wf, width='stretch')
 
     # ── Daily savings trend ──
     with col_rr:
@@ -888,12 +887,12 @@ with tab_roi:
             height=300, margin=dict(l=0, r=0, t=30, b=0),
             yaxis=dict(title="Daily Cost (USD)", gridcolor="#313244"),
         )
-        st.plotly_chart(fig_sav, use_container_width=True)
+        st.plotly_chart(fig_sav, width='stretch')
 
     # ── Architecture closed-loop explanation ──
     st.divider()
     st.markdown('<div class="sec-header">How the Closed Loop Works</div>', unsafe_allow_html=True)
-    st.plotly_chart(_arch_diagram(), use_container_width=True)
+    st.plotly_chart(_arch_diagram(), width='stretch')
     col_l1, col_l2, col_l3 = st.columns(3)
     col_l1.markdown("**① Query path** — NL query → SPL translation → Splunk search → results injected back into agent context")
     col_l2.markdown("**② Observability loop** — Every LLM call emits HEC event → `index=mcp_agents` → CDTS anomaly detect → `/splunk/alert` → auto-remediation")
@@ -930,7 +929,7 @@ with tab_spl:
     spl_query = st.text_area("SPL", presets[selected], height=80)
 
     run_col, _ = st.columns([1, 3])
-    run_query  = run_col.button("▶ Run Query", type="primary", use_container_width=True)
+    run_query  = run_col.button("▶ Run Query", type="primary", width='stretch')
 
     if run_query:
         with st.spinner("Running…"):
@@ -997,8 +996,8 @@ with tab_spl:
             height=280, margin=dict(l=0, r=0, t=20, b=0),
             showlegend=True, legend=dict(orientation="h", y=1.1),
         )
-        st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(result_df, use_container_width=True, height=200)
+        st.plotly_chart(fig, width='stretch')
+        st.dataframe(result_df, width='stretch', height=200)
         st.download_button(
             "⬇ Export results (CSV)",
             result_df.to_csv(index=False).encode("utf-8"),
@@ -1035,7 +1034,7 @@ with tab_overview:
     _img = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "assets", "splunk_dashboard.png")
     if os.path.exists(_img):
-        st.image(_img, use_container_width=True,
+        st.image(_img, width='stretch',
                  caption="Splunk Dashboard Studio — index=mcp_agents (live snapshot)")
     else:
         st.info(
@@ -1063,7 +1062,7 @@ with tab_overview:
             "Cloud note: localhost:8000 is the Streamlit server, not your PC. "
             "[↗ Open in a new tab](%s)" % spl_url
         )
-        components.iframe(spl_url, height=900, scrolling=True)
+        st.iframe(spl_url, height=900)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
