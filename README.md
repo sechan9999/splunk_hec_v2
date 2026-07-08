@@ -23,7 +23,7 @@ A local-first AI agent streams its own telemetry (cost, latency, DLP violations,
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://splunkhec2.streamlit.app/)
 
-## 🌐 Live Demo
+## 🌐 Live Demo  https://youtu.be/kuqFPwAPKNI?si=aVqdTFuqSjBMXuP_
 
 **👉 [https://splunkhec2.streamlit.app/](https://splunkhec2.streamlit.app/)** (v2)
 Original (v1): [https://splunkhec.streamlit.app/](https://splunkhec.streamlit.app/)
