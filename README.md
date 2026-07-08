@@ -7,7 +7,7 @@ A local-first AI agent streams its own telemetry (cost, latency, DLP violations,
 > **v2 fork** of [sechan9999/splunk_hec](https://github.com/sechan9999/splunk_hec) — improved demo app.
 > The original repo and live app remain untouched.
 
-**v2 demo app improvements:**
+**v2 demo app improvements:**  https://devpost.com/software/agentic-ops-control-center-datahub-guarded-ai-agents
 - First-screen guided journey ("What this demonstrates / Try these 3 actions / Why Splunk")
 - Clear Demo vs Live mode split with per-service connection status (MCPAgents, HEC, REST, SOAR)
 - ROI tab labeled as a simulated scenario with adjustable assumptions (baseline spend, cache hit rate)
