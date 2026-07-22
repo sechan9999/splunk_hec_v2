@@ -32,7 +32,7 @@ Original (v1): [https://splunkhec.streamlit.app/](https://splunkhec.streamlit.ap
 
 | | Watch |
 |---|---|
-| 🧭 **DataHub governance** — a blocked query that tells you where to go instead | [youtu.be/0GBCgEzIF1g](https://youtu.be/0GBCgEzIF1g) |
+| 🧭 **DataHub governance** — a blocked query that tells you where to go instead | [youtu.be/DRJXSBBFcSc](https://youtu.be/DRJXSBBFcSc) |
 | 🔥 **Splunk closed loop** — telemetry in, auto-remediation back | [youtu.be/kuqFPwAPKNI](https://youtu.be/kuqFPwAPKNI) |
 
 The Streamlit Cloud deployment runs in **Demo Mode** by default — all 7 tabs work with simulated data and every figure is clearly labeled as synthetic. Switch to **Live Mode** in the sidebar to connect real Splunk/MCPAgents backends (advanced setup panel with per-service connection checks).
@@ -59,7 +59,7 @@ MCPAgents                    Splunk Platform
 
 ### DataHub Layer (datahub-agent feature)
 
-> 🎬 **[2-minute walkthrough](https://youtu.be/0GBCgEzIF1g)** — the guardrail refusing a
+> 🎬 **[2-minute walkthrough](https://youtu.be/DRJXSBBFcSc)** — the guardrail refusing a
 > deprecated dataset and handing the agent a successor, the confidence dropping when that
 > successor is inferred rather than stated, and an honest silence when none can be justified.
 
