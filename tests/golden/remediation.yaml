@@ -1,0 +1,96 @@
+# Golden cases for successor suggestion on a deprecated dataset.
+#
+# A block is only useful if it tells the agent where to go instead. These cases
+# pin both the verdict and the *basis* of the suggestion, because a redirect the
+# system cannot justify is worse than no redirect at all.
+
+- name: deprecation_note_names_successor
+  origin: synthetic
+  note: Strongest evidence — a human intentionally wrote the replacement down.
+  dataset:
+    name: legacy_metrics
+    deprecated: true
+    owners: [data-eng@example.com]
+    deprecation_note: "Frozen 2026-06-01. Use metrics_v2 instead."
+  mode: enforce
+  expect:
+    verdict: block
+    reason_codes: [deprecated_dataset]
+    remediation: {suggested_dataset: metrics_v2, basis: deprecation_note,
+                  confidence: high}
+
+- name: lineage_reveals_v2_successor
+  origin: synthetic
+  note: The shape a v1 -> v2 backfill migration leaves in the lineage graph.
+  dataset:
+    name: user_features_v1
+    deprecated: true
+    downstream:
+      - "urn:li:dataset:(urn:li:dataPlatform:s3,user_features_v2,PROD)"
+      - "urn:li:dataset:(urn:li:dataPlatform:mlflow,router_model,PROD)"
+  mode: enforce
+  expect:
+    verdict: block
+    reason_codes: [deprecated_dataset]
+    remediation:
+      suggested_dataset: "urn:li:dataset:(urn:li:dataPlatform:s3,user_features_v2,PROD)"
+      basis: lineage
+      confidence: medium
+
+- name: note_beats_lineage_when_both_present
+  origin: synthetic
+  note: Ranking must be stable — an explicit human statement outranks inference.
+  dataset:
+    name: user_features_v1
+    deprecated: true
+    deprecation_note: "replaced by curated_user_features"
+    downstream:
+      - "urn:li:dataset:(urn:li:dataPlatform:s3,user_features_v2,PROD)"
+  mode: enforce
+  expect:
+    verdict: block
+    reason_codes: [deprecated_dataset]
+    remediation: {suggested_dataset: curated_user_features,
+                  basis: deprecation_note, confidence: high}
+
+- name: no_successor_is_honest_about_it
+  origin: synthetic
+  note: |
+    legacy_metrics in the demo graph has no note and no lineage. Inventing a
+    suggestion here would be worse than returning none, so the field stays null.
+  dataset:
+    name: legacy_metrics
+    deprecated: true
+    owners: [data-eng@example.com]
+  mode: enforce
+  expect:
+    verdict: block
+    reason_codes: [deprecated_dataset]
+    remediation: null
+
+- name: unrelated_downstream_is_not_a_successor
+  origin: real_incident
+  note: |
+    First draft suggested any downstream dataset, which meant a deprecated
+    table pointed at its own BI dashboard as the "replacement". Downstream
+    entries must share the name stem and carry a higher version to qualify.
+  dataset:
+    name: legacy_metrics
+    deprecated: true
+    downstream:
+      - "urn:li:dataset:(urn:li:dataPlatform:looker,exec_dashboard,PROD)"
+  mode: enforce
+  expect:
+    verdict: block
+    reason_codes: [deprecated_dataset]
+    remediation: null
+
+- name: non_deprecated_dataset_gets_no_remediation
+  origin: synthetic
+  note: The lookup is policy-driven; it must not fire for unrelated findings.
+  dataset: {name: user_features, assertions_passing: false}
+  mode: enforce
+  expect:
+    verdict: warn
+    reason_codes: [quality_assertions_failing]
+    remediation: null

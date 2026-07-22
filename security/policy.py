@@ -35,6 +35,9 @@ class PolicyError(RuntimeError):
     """Raised when the policy contract is missing, malformed, or inconsistent."""
 
 
+SUPPORTED_REMEDIATIONS = {"successor_lookup"}
+
+
 @dataclass
 class Rule:
     id: str
@@ -44,6 +47,7 @@ class Rule:
     tier: str
     message: str
     notify_owners: bool = False
+    remediation: str = ""   # name of a remediation strategy, or "" for none
 
 
 @dataclass
@@ -142,11 +146,17 @@ def load_policy(path: Optional[os.PathLike | str] = None) -> Policy:
             raise PolicyError(f"duplicate reason_code '{item['reason_code']}'")
         seen_ids.add(item["id"])
         seen_codes.add(item["reason_code"])
+        remediation = item.get("remediation", "") or ""
+        if remediation and remediation not in SUPPORTED_REMEDIATIONS:
+            raise PolicyError(
+                f"rule '{item['id']}' requests unknown remediation "
+                f"'{remediation}'; supported: {sorted(SUPPORTED_REMEDIATIONS)}")
         rules.append(Rule(
             id=item["id"], reason_code=item["reason_code"], when=item["when"],
             verdict=item["verdict"], tier=item["tier"],
             message=item.get("message", item["reason_code"]),
             notify_owners=bool(item.get("notify_owners", False)),
+            remediation=remediation,
         ))
 
     if not rules:
@@ -197,6 +207,7 @@ class Evaluation:
     reason_codes: List[str]
     policy_version: str
     notify_owners: bool = False
+    remediations: List[str] = field(default_factory=list)  # strategies the policy asked for
 
 
 def evaluate(context, dlp_enabled: bool = True, mode: str = "warn",
@@ -211,6 +222,7 @@ def evaluate(context, dlp_enabled: bool = True, mode: str = "warn",
                           policy.version)
 
     action, reasons, codes, notify = "allow", [], [], False
+    remediations: List[str] = []
     for rule in policy.rules:
         if not all(PREDICATES[key](context, expected, env)
                    for key, expected in rule.when.items()):
@@ -224,7 +236,10 @@ def evaluate(context, dlp_enabled: bool = True, mode: str = "warn",
         reasons.append(_render(rule, context, policy))
         codes.append(rule.reason_code)
         notify = notify or rule.notify_owners
+        if rule.remediation and rule.remediation not in remediations:
+            remediations.append(rule.remediation)
         if SEVERITY[verdict] > SEVERITY[action]:
             action = verdict
 
-    return Evaluation(action, reasons, codes, policy.version, notify)
+    return Evaluation(action, reasons, codes, policy.version, notify,
+                      remediations)

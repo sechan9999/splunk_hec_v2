@@ -60,6 +60,21 @@ def test_golden_case(case):
     assert verdict.reason_codes == expect["reason_codes"], case["name"]
     if "notify_owners" in expect:
         assert verdict.notify_owners is expect["notify_owners"], case["name"]
+    if "remediation" in expect:
+        want = expect["remediation"]
+        if want is None:
+            assert verdict.remediation is None, (
+                f"{case['name']}: expected no suggestion, got "
+                f"{verdict.remediation}")
+        else:
+            got = verdict.remediation
+            assert got is not None, f"{case['name']}: expected a suggestion"
+            for key, value in want.items():
+                assert got[key] == value, (
+                    f"{case['name']}: remediation.{key} was {got[key]!r}, "
+                    f"expected {value!r}")
+            # a suggestion the system cannot justify is worse than none
+            assert got["evidence"], f"{case['name']}: suggestion lacks evidence"
     # every verdict must carry the policy version that produced it
     assert verdict.policy_version, case["name"]
     # one human-readable reason per code, so the audit log is never bare

@@ -41,6 +41,7 @@ class DatasetContext:
     assertions_passing: Optional[bool] = None  # None = no assertions defined
     upstream: List[str] = field(default_factory=list)
     downstream: List[str] = field(default_factory=list)
+    deprecation_note: str = ""  # DataHub Deprecation.note; often names the successor
     fetched_at: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
@@ -49,6 +50,7 @@ class DatasetContext:
             "owners": self.owners, "deprecated": self.deprecated,
             "tags": self.tags, "assertions_passing": self.assertions_passing,
             "upstream": self.upstream, "downstream": self.downstream,
+            "deprecation_note": self.deprecation_note,
         }
 
 
@@ -85,7 +87,7 @@ query dataset($urn: String!) {
     urn
     name
     platform { name }
-    deprecation { deprecated }
+    deprecation { deprecated note }
     ownership { owners { owner { ... on CorpUser { username } ... on CorpGroup { name } } } }
     tags { tags { tag { name } } }
     health { type status }
@@ -271,6 +273,7 @@ class DataHubMCPTool:
             owners=owners,
             deprecated=bool((ds.get("deprecation") or {}).get("deprecated")),
             tags=tags, assertions_passing=assertions_passing,
+            deprecation_note=((ds.get("deprecation") or {}).get("note") or ""),
             fetched_at=time.time(),
         )
         ctx.upstream = self.get_lineage(urn, "UPSTREAM")

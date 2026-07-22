@@ -57,10 +57,40 @@ The agent consults the **DataHub context graph** before acting and writes govern
 | File | Role |
 |------|------|
 | `tools/datahub_mcp_tool.py` | NL → DataHub queries (search/ownership/lineage/quality); MCP server preferred, GraphQL fallback |
-| `security/governance_bridge.py` | `MetadataGuardrail` (pre-flight allow/warn/block per decision table) + `GovernanceBridge` (DLP/remediation → `llmai:*` tags) |
+| `policies/governance.yaml` | **the guardrail rules themselves** — versioned, CODEOWNERS-reviewed |
+| `security/policy.py` | policy loader + evaluator (validates rules, rejects unknown predicates) |
+| `security/governance_bridge.py` | `MetadataGuardrail` (pre-flight allow/warn/block) + `GovernanceBridge` (DLP/remediation → `llmai:*` tags) |
+| `security/remediation.py` | successor suggestion for deprecated datasets, with evidence and confidence |
+| `tests/golden/` | golden governance cases — the regression contract for every verdict |
 | Data Context tab | ownership, quality, guardrail verdict, lineage, and the governance write-back feed |
 
 Configure with `DATAHUB_GMS_URL` / `DATAHUB_TOKEN` / `GUARDRAIL_MODE` (see `.env.example`); fully simulated in Demo Mode, degrades to no-op when unset.
+
+#### The policy is a contract, not code
+
+Guardrail rules live in `policies/governance.yaml`, not inside a Python function. Changing what the agent is allowed to touch is therefore a diff a reviewer can read, and `.github/CODEOWNERS` requires approval on it — the governance policy is itself governed.
+
+The policy is **data, never code**: a rule's `when:` block may only reference predicates that `security/policy.py` implements, so editing the YAML cannot execute anything, and an unrecognized predicate is rejected when the policy loads. A missing or malformed policy raises rather than quietly allowing everything — a governance layer that fails open when its own rules won't parse is worse than one that refuses to start.
+
+Rules carry a severity tier:
+
+| Tier | Behavior |
+|------|----------|
+| `catastrophic` | Verdict stands even in warn mode. Regulated data read with DLP off lives here. |
+| `serious` | Blocks downgrade to warnings unless `GUARDRAIL_MODE=enforce`. |
+| `informational` | Advisory; never escalates, but always recorded. |
+
+The stance is *unknown → open, known-dangerous → closed*: when DataHub is unreachable we cannot classify the data, so the agent proceeds and the reason code says why — governance must not become an availability dependency. But when we **can** read the metadata and it says the data is regulated and unscanned, we close.
+
+#### Golden cases
+
+Every verdict a human judges wrong becomes a permanent fixture in `tests/golden/` before the policy is changed, which is what stops the same mistake from returning. Cases assert on stable `reason_codes`, never on the prose message — messages are for humans and are free to be reworded.
+
+A coverage gate fails the build when a policy rule ships without a case, and a second suite replays the demo graph through the live evaluator so the Streamlit demo can never drift into showing a verdict the product would not actually produce.
+
+```bash
+pytest tests -q          # 47 checks: policy contract, golden cases, demo consistency
+```
 
 ### Demo App (v2 modular layout)
 

@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 from security.policy import evaluate as _evaluate_policy
+from security.remediation import suggest_successor
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class GuardrailVerdict:
     reason_codes: List[str] = field(default_factory=list)
     policy_version: str = ""
     notify_owners: bool = False
+    remediation: Optional[Dict] = None   # advisory next step, never auto-applied
 
     def to_dict(self) -> Dict:
         return {
@@ -43,27 +45,37 @@ class GuardrailVerdict:
             "reason_codes": self.reason_codes,
             "policy_version": self.policy_version,
             "notify_owners": self.notify_owners,
+            "remediation": self.remediation,
             "context": self.context.to_dict() if self.context else None,
         }
 
 
 def decide(context, dlp_enabled: bool = True, mode: str = "warn",
-           policy=None) -> GuardrailVerdict:
+           policy=None, catalog: Optional[List[str]] = None) -> GuardrailVerdict:
     """Pure decision function (unit-testable, no I/O).
 
     context: DatasetContext or None (None = DataHub had no answer).
     mode: "off" | "warn" | "enforce".
     policy: optional Policy override; defaults to the shipped contract.
+    catalog: optional known dataset URNs, used only for the weakest
+        successor-matching path (see security/remediation.py).
 
     Prose in `reasons` is for humans and may be reworded at any time —
     assert on `reason_codes` instead, which are part of the policy contract.
     """
     ev = _evaluate_policy(context, dlp_enabled=dlp_enabled, mode=mode,
                           policy=policy)
+
+    remediation = None
+    if "successor_lookup" in ev.remediations:
+        suggestion = suggest_successor(context, catalog=catalog)
+        remediation = suggestion.to_dict() if suggestion else None
+
     return GuardrailVerdict(ev.action, ev.reasons, context,
                             reason_codes=ev.reason_codes,
                             policy_version=ev.policy_version,
-                            notify_owners=ev.notify_owners)
+                            notify_owners=ev.notify_owners,
+                            remediation=remediation)
 
 
 class MetadataGuardrail:

@@ -177,8 +177,11 @@ def gen_datahub_context():
             "assertions_passing": True,
             "upstream": [urn("s3", "raw_intake")],
             "downstream": [],
-            "verdict": {"action": "warn",
-                        "reasons": ["PII-tagged dataset - DLP scan enforced"]},
+            "verdict": {"action": "allow",
+                        "reasons": ["hipaa-tagged dataset accessed with DLP "
+                                    "scanning active"],
+                        "reason_codes": ["sensitive_access_logged"],
+                        "remediation": None},
         },
         "user_features_v1": {
             "urn": urn("s3", "user_features_v1"), "name": "user_features_v1",
@@ -196,9 +199,36 @@ def gen_datahub_context():
             "deprecated": True, "tags": ["deprecated"],
             "assertions_passing": None,
             "upstream": [], "downstream": [],
+            "deprecation_note": "",
             "verdict": {"action": "block",
                         "reasons": ["dataset deprecated "
-                                    "(owners: data-eng@llmai.dev)"]},
+                                    "(owners: data-eng@llmai.dev)"],
+                        "reason_codes": ["deprecated_dataset"],
+                        # no note, no lineage: we say so instead of guessing
+                        "remediation": None},
+        },
+        # Deprecated *with* a stated replacement — the case where a block turns
+        # into a redirect the agent can act on within the same run.
+        "user_events_v1": {
+            "urn": urn("bigquery", "user_events_v1"), "name": "user_events_v1",
+            "platform": "bigquery", "owners": ["data-eng@llmai.dev"],
+            "deprecated": True, "tags": ["deprecated", "product-analytics"],
+            "assertions_passing": None,
+            "upstream": [urn("kafka", "web_events")],
+            "downstream": [urn("bigquery", "user_events_v2")],
+            "deprecation_note": "Frozen 2026-06-30. Use user_events_v2 instead.",
+            "verdict": {"action": "block",
+                        "reasons": ["dataset deprecated "
+                                    "(owners: data-eng@llmai.dev)"],
+                        "reason_codes": ["deprecated_dataset"],
+                        "remediation": {
+                            "suggested_dataset": "user_events_v2",
+                            "basis": "deprecation_note",
+                            "confidence": "high",
+                            "evidence": ("deprecation note: Frozen 2026-06-30. "
+                                         "Use user_events_v2 instead."),
+                            "caveats": ["successor is unverified: schema "
+                                        "compatibility was not checked"]}},
         },
     }
 

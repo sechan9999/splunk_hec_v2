@@ -62,6 +62,17 @@
   mode: warn
   expect: {verdict: block, reason_codes: [sensitive_data_unscanned], notify_owners: true}
 
+- name: hipaa_with_dlp_on_allows_but_is_recorded
+  origin: real_incident
+  note: |
+    Caught by comparing the demo graph against the live engine: a HIPAA read
+    with DLP enabled returned a bare allow with no reason codes, so a
+    regulated-data access left no trace in the audit log. Permitted is not
+    the same as unremarkable.
+  dataset: {name: patients_pii, tags: [pii, restricted, hipaa], assertions_passing: true}
+  dlp_enabled: true
+  expect: {verdict: allow, reason_codes: [sensitive_access_logged]}
+
 - name: pci_unscanned_blocks
   origin: synthetic
   dataset: {name: card_transactions, tags: [PCI]}

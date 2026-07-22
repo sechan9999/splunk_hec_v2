@@ -57,6 +57,9 @@ rules:
     tier: serious
     message: "dataset deprecated (owners: {owners})"
     notify_owners: true
+    # Ask security/remediation.py for a replacement so the agent gets a
+    # redirect rather than a dead end. Advisory only — never auto-applied.
+    remediation: successor_lookup
 
   - id: sensitive_unscanned
     reason_code: sensitive_data_unscanned
@@ -67,6 +70,18 @@ rules:
     tier: catastrophic
     message: "{matched_sensitive_tags}-tagged dataset accessed with DLP scanning disabled"
     notify_owners: true
+
+  - id: sensitive_access_logged
+    reason_code: sensitive_access_logged
+    when:
+      has_sensitive_tag: true
+      dlp_enabled: true
+    verdict: allow
+    tier: informational
+    # Permitted, but never silent: without this rule a HIPAA read with DLP on
+    # produces an empty verdict and leaves no trace that regulated data was
+    # touched at all. Access to regulated data is always an audit event.
+    message: "{matched_sensitive_tags}-tagged dataset accessed with DLP scanning active"
 
   - id: failing_assertions
     reason_code: quality_assertions_failing
