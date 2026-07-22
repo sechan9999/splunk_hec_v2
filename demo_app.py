@@ -618,6 +618,22 @@ with tab_context:
     cc3.markdown(kpi("Guardrail", v_action.upper(), v_reason, v_color,
                      v_action == "allow"), unsafe_allow_html=True)
 
+    # A block is only useful if it says where to go instead. The suggestion
+    # always ships its basis and confidence — a redirect the system cannot
+    # justify is worse than no redirect, so we show the reasoning, not just
+    # the answer, and never apply it automatically.
+    fix = ds["verdict"].get("remediation")
+    if fix:
+        st.success(
+            f"**Suggested instead:** `{fix['suggested_dataset']}` — "
+            f"{fix['confidence']} confidence, based on {fix['basis'].replace('_', ' ')}.  \n"
+            f"*{fix['evidence']}*"
+            + ("  \n⚠ " + "; ".join(fix["caveats"]) if fix.get("caveats") else ""))
+    elif v_action == "block":
+        st.info("No successor could be justified from the deprecation note, "
+                "lineage, or naming — so none is offered. Guessing here would "
+                "be worse than saying nothing.")
+
     st.markdown("<br>", unsafe_allow_html=True)
     sec_header("Lineage (depth 1)")
     _short = lambda u: u.split(",")[1] if "," in u else u

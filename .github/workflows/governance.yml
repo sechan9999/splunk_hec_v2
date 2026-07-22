@@ -1,0 +1,76 @@
+name: governance
+
+# Risk-tiered gating: the depth of validation follows what a change can break.
+# Docs cannot change agent behaviour; the policy contract can, so it has to
+# clear the golden suite before it merges.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  # Always runs. Structural guarantees plus the full suite — cheap enough that
+  # tiering it would buy nothing.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt pytest
+
+      # Blocks unconditionally, whatever the rest of the suite says: these are
+      # the properties that make a verdict accountable rather than decorative.
+      - name: Structural audit contract
+        run: pytest tests/test_audit_contract.py -q
+
+      - name: Policy contract and golden cases
+        run: pytest tests/test_golden_cases.py tests/test_guardrail.py -q
+
+      - name: Demo must match the live engine
+        run: pytest tests/test_demo_consistency.py -q
+
+      - name: Headless app smoke
+        run: pytest tests/test_app_smoke.py -q
+
+  # Extra scrutiny when the rules themselves move. The guardrail decides what
+  # the agent may touch, so a policy diff is reviewed like production config.
+  policy-change:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changed
+        name: Did the policy contract change?
+        run: |
+          base="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          if git diff --name-only "$base"...HEAD | grep -qE '^(policies/|security/policy\.py)'; then
+            echo "hit=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hit=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.changed.outputs.hit == 'true'
+        with:
+          python-version: "3.11"
+      - if: steps.changed.outputs.hit == 'true'
+        run: pip install -r requirements.txt pytest
+
+      # The gate that keeps the golden suite honest: a new rule without a case
+      # fails here, so coverage cannot quietly rot as the policy grows.
+      - name: Coverage gate — every rule needs a golden case
+        if: steps.changed.outputs.hit == 'true'
+        run: |
+          pytest tests/test_golden_cases.py -q \
+            -k "coverage or reason_code or verdict_type or policy"
+
+      - name: Remind reviewers this is a policy change
+        if: steps.changed.outputs.hit == 'true'
+        run: |
+          echo "::notice::Policy contract changed — CODEOWNERS approval on policies/ is required."

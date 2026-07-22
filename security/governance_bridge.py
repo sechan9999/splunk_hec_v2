@@ -38,6 +38,30 @@ class GuardrailVerdict:
     notify_owners: bool = False
     remediation: Optional[Dict] = None   # advisory next step, never auto-applied
 
+    def evidence(self) -> Dict:
+        """Self-contained record of what this verdict was decided on.
+
+        A verdict that cannot be re-justified later is not an audit trail.
+        `metadata_age_sec` matters because the guardrail caches contexts for
+        five minutes: without it, a block and the metadata that produced it
+        can be minutes apart with nothing saying so.
+        """
+        ctx = self.context
+        if ctx is None:
+            return {"urn": None, "tags_consulted": [], "quality_state": None,
+                    "deprecated": None, "checked_at": None,
+                    "metadata_age_sec": None}
+        fetched_at = getattr(ctx, "fetched_at", 0.0) or 0.0
+        return {
+            "urn": getattr(ctx, "urn", None),
+            "tags_consulted": list(getattr(ctx, "tags", []) or []),
+            "quality_state": getattr(ctx, "assertions_passing", None),
+            "deprecated": getattr(ctx, "deprecated", None),
+            "checked_at": fetched_at or None,
+            "metadata_age_sec": (round(time.time() - fetched_at, 3)
+                                 if fetched_at else None),
+        }
+
     def to_dict(self) -> Dict:
         return {
             "action": self.action,
@@ -46,6 +70,7 @@ class GuardrailVerdict:
             "policy_version": self.policy_version,
             "notify_owners": self.notify_owners,
             "remediation": self.remediation,
+            "evidence": self.evidence(),
             "context": self.context.to_dict() if self.context else None,
         }
 

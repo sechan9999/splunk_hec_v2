@@ -51,6 +51,9 @@ class DatasetContext:
             "tags": self.tags, "assertions_passing": self.assertions_passing,
             "upstream": self.upstream, "downstream": self.downstream,
             "deprecation_note": self.deprecation_note,
+            # when this snapshot was taken; a verdict is only as fresh as the
+            # metadata behind it, and the guardrail caches for 5 minutes
+            "fetched_at": self.fetched_at,
         }
 
 

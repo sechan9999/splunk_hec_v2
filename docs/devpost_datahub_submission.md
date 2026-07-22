@@ -82,7 +82,7 @@ The agent never adjudicates its own access. That is the whole point.
 
 - Governance that's **load-bearing, not decorative**: the guardrail actually changes agent behavior (a deprecated dataset gets refused with the owner's name), and the write-back makes DataHub the system of record for AI data access.
 - **The guardrail is defended by evidence, not by hope.** Anyone can write a decision table; the question a governance jury should ask is how you know it still decides correctly after ten policy edits. Our answer is a coverage gate that refuses to merge a rule nobody wrote a case for.
-- **Zero regressions**: the entire DataHub layer is env-gated; the base platform runs identically without it — the pytest suite grew from 10 checks to 47 without breaking one of the original ten, and the demo app still renders exception-free under Streamlit's headless AppTest harness.
+- **Zero regressions, and you can check**: the entire DataHub layer is env-gated, so the base platform runs identically without it. The suite grew from 10 checks to **70** — golden cases, structural audit contracts, demo-versus-engine consistency, and headless AppTest coverage of the Data Context tab — without breaking one of the original ten. Every number here comes from `pytest tests -q` on a clean checkout; nothing is cited that a reader cannot reproduce.
 - **Governance is not where the latency goes**: policy evaluation costs p50 0.006 ms / p95 0.014 ms per decision (n=2000, measured on this repo, excluding the DataHub lookup the 5-minute cache absorbs). Being auditable did not cost us a runtime budget.
 - Shipping a **complete, documented engineering cycle** (plan/design/analysis/report in-repo) in the submission window.
 
