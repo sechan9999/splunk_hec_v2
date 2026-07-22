@@ -28,7 +28,7 @@ A local-first AI agent streams its own telemetry (cost, latency, DLP violations,
 **👉 [https://splunkhec2.streamlit.app/](https://splunkhec2.streamlit.app/)** (v2)
 Original (v1): [https://splunkhec.streamlit.app/](https://splunkhec.streamlit.app/)
 
-The Streamlit Cloud deployment runs in **Demo Mode** by default — all 6 tabs work with simulated data and every figure is clearly labeled as synthetic. Switch to **Live Mode** in the sidebar to connect real Splunk/MCPAgents backends (advanced setup panel with per-service connection checks).
+The Streamlit Cloud deployment runs in **Demo Mode** by default — all 7 tabs work with simulated data and every figure is clearly labeled as synthetic. Switch to **Live Mode** in the sidebar to connect real Splunk/MCPAgents backends (advanced setup panel with per-service connection checks).
 
 ---
 
