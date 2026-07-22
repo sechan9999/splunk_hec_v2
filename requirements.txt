@@ -6,3 +6,6 @@ urllib3>=2.0.0
 plotly>=5.18.0
 pandas>=2.0.0
 numpy>=1.24.0
+# governance policy contract loader (security/policy.py). Without it the
+# guardrail degrades to allow-everything, which is silent, so keep it pinned.
+PyYAML>=6.0

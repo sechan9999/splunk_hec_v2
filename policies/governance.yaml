@@ -1,0 +1,86 @@
+# Governance policy contract for the pre-flight metadata guardrail.
+#
+# This file is the ONLY source of guardrail rules; security/policy.py contains
+# the evaluator, not the policy. Changing agent behaviour therefore shows up as
+# a reviewable diff here rather than as a code change.
+#
+# The policy is data, never code: a rule may only select among the predicates
+# implemented in security/policy.py (PREDICATES). There is no eval path, so a
+# malicious edit cannot execute anything — it can only mis-classify, which the
+# golden-case suite in tests/golden/ is there to catch.
+#
+# Tier semantics
+#   catastrophic  - verdict stands even under GUARDRAIL_MODE=warn.
+#                   Reserved for "we read the metadata and it says this is
+#                   dangerous". Only the explicit GUARDRAIL_MODE=off kill
+#                   switch bypasses it.
+#   serious       - block downgrades to warn unless GUARDRAIL_MODE=enforce.
+#   informational - advisory; never escalates.
+#
+# Availability stance: unknown -> open, known-dangerous -> closed. When DataHub
+# cannot be reached we cannot classify, so we degrade open (no_metadata rule)
+# and say so in the reason code. Governance must not become an availability
+# dependency of the agent.
+
+version: "1.0.0"
+
+tiers:
+  catastrophic:
+    downgradable: false
+  serious:
+    downgradable: true
+  informational:
+    downgradable: true
+
+# Tag vocabularies, lowercased before matching.
+sensitive_tags: [hipaa, phi, pci]   # regulated data: unscanned access is catastrophic
+pii_tags: [pii]                     # general PII: advisory when DLP is off
+
+# Rules are evaluated in order. Every matching rule contributes a reason; the
+# final action is the most severe verdict among them (allow < warn < block),
+# so a dataset that is both deprecated and unscanned reports both problems
+# instead of masking the second behind the first.
+rules:
+  - id: no_metadata
+    reason_code: metadata_unavailable
+    when:
+      metadata: absent
+    verdict: allow
+    tier: informational
+    message: "no metadata available - degrading open"
+
+  - id: deprecated
+    reason_code: deprecated_dataset
+    when:
+      deprecated: true
+    verdict: block
+    tier: serious
+    message: "dataset deprecated (owners: {owners})"
+    notify_owners: true
+
+  - id: sensitive_unscanned
+    reason_code: sensitive_data_unscanned
+    when:
+      has_sensitive_tag: true
+      dlp_enabled: false
+    verdict: block
+    tier: catastrophic
+    message: "{matched_sensitive_tags}-tagged dataset accessed with DLP scanning disabled"
+    notify_owners: true
+
+  - id: failing_assertions
+    reason_code: quality_assertions_failing
+    when:
+      assertions_passing: false
+    verdict: warn
+    tier: serious
+    message: "failing quality assertions"
+
+  - id: pii_dlp_off
+    reason_code: pii_dlp_disabled
+    when:
+      has_pii_tag: true
+      dlp_enabled: false
+    verdict: warn
+    tier: serious
+    message: "PII-tagged dataset with DLP disabled"

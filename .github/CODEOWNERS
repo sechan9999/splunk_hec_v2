@@ -1,0 +1,6 @@
+# The governance policy decides what the agent may touch, so it is reviewed
+# like production config rather than like code. Edits here require an owner's
+# approval even when the accompanying code change does not.
+/policies/            @sechan9999
+/tests/golden/        @sechan9999
+/security/policy.py   @sechan9999

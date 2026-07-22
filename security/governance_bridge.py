@@ -1,14 +1,11 @@
 # security/governance_bridge.py
 """DataHub governance layer: pre-flight guardrails + write-back.
 
-MetadataGuardrail — consulted BEFORE the agent runs a data tool.
-Decision table (design 3.2), evaluated in order:
-
-    DataHub unreachable / unconfigured  -> allow  (degrade open, log)
-    dataset deprecated                  -> block  (warn unless GUARDRAIL_MODE=enforce)
-    assertions failing                  -> warn
-    'pii' tag AND DLP engine disabled   -> warn
-    otherwise                           -> allow
+MetadataGuardrail — consulted BEFORE the agent runs a data tool. The rules
+themselves live in policies/governance.yaml (loaded by security/policy.py),
+so changing what the agent is allowed to do is a reviewable policy diff
+rather than a code change. See that file for the decision table and for the
+tier semantics that decide when a block may be downgraded to a warning.
 
 GovernanceBridge — fire-and-forget write-back of DLP violations and
 auto-remediation events to DataHub as namespaced llmai:* tags.
@@ -23,6 +20,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
+from security.policy import evaluate as _evaluate_policy
+
 logger = logging.getLogger(__name__)
 
 CACHE_TTL_SEC = 300  # 5 minutes per design
@@ -33,38 +32,38 @@ class GuardrailVerdict:
     action: str                       # "allow" | "warn" | "block"
     reasons: List[str] = field(default_factory=list)
     context: Optional[object] = None  # DatasetContext | None
+    reason_codes: List[str] = field(default_factory=list)
+    policy_version: str = ""
+    notify_owners: bool = False
 
     def to_dict(self) -> Dict:
         return {
             "action": self.action,
             "reasons": self.reasons,
+            "reason_codes": self.reason_codes,
+            "policy_version": self.policy_version,
+            "notify_owners": self.notify_owners,
             "context": self.context.to_dict() if self.context else None,
         }
 
 
-def decide(context, dlp_enabled: bool = True, mode: str = "warn") -> GuardrailVerdict:
+def decide(context, dlp_enabled: bool = True, mode: str = "warn",
+           policy=None) -> GuardrailVerdict:
     """Pure decision function (unit-testable, no I/O).
 
     context: DatasetContext or None (None = DataHub had no answer).
     mode: "off" | "warn" | "enforce".
-    """
-    if mode == "off":
-        return GuardrailVerdict("allow", ["guardrail disabled"])
-    if context is None:
-        return GuardrailVerdict("allow", ["no metadata available - degrading open"])
+    policy: optional Policy override; defaults to the shipped contract.
 
-    if context.deprecated:
-        action = "block" if mode == "enforce" else "warn"
-        return GuardrailVerdict(
-            action,
-            [f"dataset deprecated (owners: {', '.join(context.owners) or 'unknown'})"],
-            context)
-    if context.assertions_passing is False:
-        return GuardrailVerdict("warn", ["failing quality assertions"], context)
-    if "pii" in [t.lower() for t in context.tags] and not dlp_enabled:
-        return GuardrailVerdict("warn", ["PII-tagged dataset with DLP disabled"],
-                                context)
-    return GuardrailVerdict("allow", [], context)
+    Prose in `reasons` is for humans and may be reworded at any time —
+    assert on `reason_codes` instead, which are part of the policy contract.
+    """
+    ev = _evaluate_policy(context, dlp_enabled=dlp_enabled, mode=mode,
+                          policy=policy)
+    return GuardrailVerdict(ev.action, ev.reasons, context,
+                            reason_codes=ev.reason_codes,
+                            policy_version=ev.policy_version,
+                            notify_owners=ev.notify_owners)
 
 
 class MetadataGuardrail:

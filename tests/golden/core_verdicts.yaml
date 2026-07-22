@@ -1,0 +1,106 @@
+# Golden governance cases — the regression contract for the guardrail.
+#
+# Each case is a dataset context plus the verdict a human agreed is correct.
+# When a verdict is judged wrong in demo or production, add the case here with
+# origin: real_incident BEFORE fixing the policy — that is what stops the same
+# mistake from coming back.
+#
+# Assert on reason_code, never on the prose message: messages are for humans
+# and are allowed to be reworded, codes are part of the policy contract.
+
+- name: no_metadata_degrades_open
+  origin: synthetic
+  note: DataHub unreachable — we cannot classify, so availability wins.
+  dataset: null
+  expect: {verdict: allow, reason_codes: [metadata_unavailable]}
+
+- name: clean_dataset_allows
+  origin: synthetic
+  dataset: {name: user_features, tags: [gold], assertions_passing: true}
+  expect: {verdict: allow, reason_codes: []}
+
+- name: deprecated_warns_by_default
+  origin: synthetic
+  note: serious tier — advisory unless the operator opts into enforce.
+  dataset: {name: legacy_visitors, deprecated: true, owners: [data-eng@example.com]}
+  mode: warn
+  expect: {verdict: warn, reason_codes: [deprecated_dataset]}
+
+- name: deprecated_blocks_in_enforce
+  origin: synthetic
+  dataset: {name: legacy_visitors, deprecated: true, owners: [data-eng@example.com]}
+  mode: enforce
+  expect: {verdict: block, reason_codes: [deprecated_dataset], notify_owners: true}
+
+- name: failing_assertions_warn
+  origin: synthetic
+  dataset: {name: user_features, assertions_passing: false}
+  mode: enforce
+  expect: {verdict: warn, reason_codes: [quality_assertions_failing]}
+
+- name: pii_with_dlp_on_allows
+  origin: synthetic
+  note: DLP scanning is the control; with it on, a PII tag alone is not a finding.
+  dataset: {name: customers, tags: [pii]}
+  dlp_enabled: true
+  expect: {verdict: allow, reason_codes: []}
+
+- name: pii_with_dlp_off_warns
+  origin: synthetic
+  dataset: {name: customers, tags: [PII, gold]}
+  dlp_enabled: false
+  expect: {verdict: warn, reason_codes: [pii_dlp_disabled]}
+
+- name: hipaa_unscanned_blocks_even_in_warn_mode
+  origin: synthetic
+  note: |
+    catastrophic tier. Regulated data read with DLP off is the one case we
+    refuse to downgrade — this is the rule that makes the guardrail
+    load-bearing rather than advisory.
+  dataset: {name: patient_encounters, tags: [hipaa]}
+  dlp_enabled: false
+  mode: warn
+  expect: {verdict: block, reason_codes: [sensitive_data_unscanned], notify_owners: true}
+
+- name: pci_unscanned_blocks
+  origin: synthetic
+  dataset: {name: card_transactions, tags: [PCI]}
+  dlp_enabled: false
+  mode: warn
+  expect: {verdict: block, reason_codes: [sensitive_data_unscanned]}
+
+- name: deprecated_and_unscanned_reports_both
+  origin: real_incident
+  note: |
+    Found while reviewing the decision table: the original implementation
+    returned on the first match, so a deprecated dataset that was also
+    unscanned reported only the deprecation and the operator never saw the
+    regulated-data problem. Both reasons must surface, and the catastrophic
+    verdict must win.
+  dataset: {name: legacy_patient_export, deprecated: true, tags: [hipaa],
+            owners: [data-eng@example.com]}
+  dlp_enabled: false
+  mode: warn
+  expect:
+    verdict: block
+    reason_codes: [deprecated_dataset, sensitive_data_unscanned]
+    notify_owners: true
+
+- name: quality_and_pii_both_reported
+  origin: synthetic
+  dataset: {name: customers, tags: [pii], assertions_passing: false}
+  dlp_enabled: false
+  expect:
+    verdict: warn
+    reason_codes: [quality_assertions_failing, pii_dlp_disabled]
+
+- name: kill_switch_bypasses_everything
+  origin: synthetic
+  note: |
+    GUARDRAIL_MODE=off is an explicit operator override, so even the
+    catastrophic rule yields — but the bypass itself is recorded under its
+    own reason code so it can never look like a clean allow in the audit log.
+  dataset: {name: patient_encounters, deprecated: true, tags: [hipaa]}
+  dlp_enabled: false
+  mode: "off"
+  expect: {verdict: allow, reason_codes: [guardrail_off]}
