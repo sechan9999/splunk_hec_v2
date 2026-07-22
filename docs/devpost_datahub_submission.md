@@ -29,13 +29,21 @@ The DataHub context graph becomes both the agent's **decision input** and its **
 
 **1. Pre-flight metadata guardrails (decision input).** Before the agent executes any data tool, a `MetadataGuardrail` consults DataHub and applies an explicit decision table:
 
-| DataHub says... | Verdict |
-|---|---|
-| dataset is deprecated | **BLOCK** — agent refuses and reports the owner to contact |
-| quality assertions failing | **WARN** — proceeds, flagged in the UI |
-| PII-tagged and DLP scanning is off | **WARN** |
-| DataHub unreachable | **ALLOW** (degrade open — availability first, logged) |
-| clean | **ALLOW** |
+| DataHub says... | Verdict | Tier |
+|---|---|---|
+| regulated (HIPAA/PHI/PCI) **and** DLP scanning is off | **BLOCK** — refuses even in warn mode | catastrophic |
+| dataset is deprecated | **BLOCK** — refuses, names the owner, suggests a successor | serious |
+| quality assertions failing | **WARN** — proceeds, flagged in the UI | serious |
+| PII-tagged and DLP scanning is off | **WARN** | serious |
+| regulated **and** DLP scanning is on | **ALLOW** — permitted, but recorded | informational |
+| DataHub unreachable | **ALLOW** (degrade open — availability first, logged) | informational |
+| clean | **ALLOW** | — |
+
+The tier column is the load-bearing part. A `serious` finding downgrades to a
+warning unless an operator opts into `GUARDRAIL_MODE=enforce`; a `catastrophic`
+one refuses to be downgraded at all. And permitted is not the same as
+unremarkable — a regulated read with DLP on still leaves a reason code, because
+a governance layer that records nothing when it says yes has no audit trail.
 
 The verdict rides along with every tool result — in the Agent Lab you see `🧭 guardrail: allow — owner data-eng@...` on each call.
 
@@ -68,7 +76,7 @@ The agent never adjudicates its own access. That is the whole point.
 - **The policy is a contract, not code** (`policies/governance.yaml` + `security/policy.py`): the rules live in versioned YAML with CODEOWNERS review, so changing what the agent may touch is a diff a reviewer reads rather than a code change buried in a function. The policy is *data* — a rule may only select among predicates the evaluator implements, so there is no path by which editing the file executes anything, and an unknown predicate is rejected at load. Every verdict carries the policy version that produced it. Rules are tiered: `catastrophic` findings (regulated data read with DLP off) refuse to be downgraded, while `serious` ones stay advisory unless an operator opts into enforce.
 - **Golden-case regression suite** (`tests/golden/`, 19 cases): real questions the guardrail got wrong become permanent fixtures, asserted on stable reason codes rather than on prose that is free to be reworded. A coverage gate fails the build if a policy rule ships without a case — we verified it bites by adding a throwaway rule and watching CI refuse it. A second suite pins the demo graph to the live engine, so the Streamlit demo can never drift into showing a verdict the product would not produce.
 - **Agent wiring**: `DataHubPlugin` registered in the platform's plugin registry; guardrail pre-flight hooked into the data-tool path; verdicts attached to results.
-- **Demo Mode**: the public Streamlit app simulates a 5-dataset context graph deliberately covering all three verdicts, so judges can experience block/warn/allow with zero setup. Live mode connects to a real GMS via `DATAHUB_GMS_URL` + token (st.secrets), with per-service connection checks in the sidebar.
+- **Demo Mode**: the public Streamlit app simulates a 7-dataset context graph deliberately covering all three verdicts *and* all three successor-evidence paths — a stated deprecation note, an inference from lineage, and a deprecated table where no successor can be justified and the UI says so — so judges can experience block/warn/allow with zero setup. Live mode connects to a real GMS via `DATAHUB_GMS_URL` + token (st.secrets), with per-service connection checks in the sidebar.
 - **Method**: full PDCA cycle with docs in-repo (plan → design → implementation → gap analysis → report). Gap analysis scored 30 design items at 93% match after two iterations.
 - **Validated against a real DataHub quickstart** (GMS v1.5.0.6) with the official [healthcare sample dataset](https://github.com/datahub-project/static-assets/tree/main/datasets/healthcare): live NL ownership/lineage queries, guardrail WARN on the PII-tagged mart, and round-trip-verified `llmai:*` tag write-back — evidence in [`docs/live_spike_evidence.md`](live_spike_evidence.md). The spike even caught a real API constraint (tags must be created before association) that simulation couldn't.
 
@@ -82,7 +90,7 @@ The agent never adjudicates its own access. That is the whole point.
 
 - Governance that's **load-bearing, not decorative**: the guardrail actually changes agent behavior (a deprecated dataset gets refused with the owner's name), and the write-back makes DataHub the system of record for AI data access.
 - **The guardrail is defended by evidence, not by hope.** Anyone can write a decision table; the question a governance jury should ask is how you know it still decides correctly after ten policy edits. Our answer is a coverage gate that refuses to merge a rule nobody wrote a case for.
-- **Zero regressions, and you can check**: the entire DataHub layer is env-gated, so the base platform runs identically without it. The suite grew from 10 checks to **70** — golden cases, structural audit contracts, demo-versus-engine consistency, and headless AppTest coverage of the Data Context tab — without breaking one of the original ten. Every number here comes from `pytest tests -q` on a clean checkout; nothing is cited that a reader cannot reproduce.
+- **Zero regressions, and you can check**: the entire DataHub layer is env-gated, so the base platform runs identically without it. The suite grew from 10 checks to **72** — golden cases, structural audit contracts, demo-versus-engine consistency, and headless AppTest coverage of the Data Context tab — without breaking one of the original ten. Every number here comes from `pytest tests -q` on a clean checkout; nothing is cited that a reader cannot reproduce.
 - **Governance is not where the latency goes**: policy evaluation costs p50 0.006 ms / p95 0.014 ms per decision (n=2000, measured on this repo, excluding the DataHub lookup the 5-minute cache absorbs). Being auditable did not cost us a runtime budget.
 - Shipping a **complete, documented engineering cycle** (plan/design/analysis/report in-repo) in the submission window.
 
