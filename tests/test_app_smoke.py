@@ -65,7 +65,8 @@ def test_kpis_render(app):
 
 def test_data_context_tab_offers_every_demo_dataset(app):
     options = app.tabs[DATA_CONTEXT_TAB].selectbox[0].options
-    for name in ("visitors", "patients_pii", "legacy_metrics", "user_events_v1"):
+    for name in ("visitors", "patients_pii", "legacy_metrics",
+                 "user_events_v1", "session_metrics_v1"):
         assert name in options, f"{name} missing from the Data Context selector"
 
 
@@ -97,6 +98,24 @@ def test_block_with_known_successor_shows_the_redirect():
     text = _tab_text(at)
     assert "user_events_v2" in text, "successor not surfaced in the UI"
     assert "confidence" in text.lower(), "suggestion shown without its confidence"
+
+
+def test_lineage_inferred_successor_is_shown_with_lower_confidence():
+    """The second evidence path: nobody wrote a note, so lineage is read.
+
+    Confidence must visibly drop, and the consumer dashboard downstream must
+    not be mistaken for a replacement.
+    """
+    at = AppTest.from_file(APP, default_timeout=90)
+    at.run()
+    at.tabs[DATA_CONTEXT_TAB].selectbox[0].set_value("session_metrics_v1").run()
+    text = _tab_text(at)
+    assert "session_metrics_v2" in text, "lineage successor not surfaced"
+    assert "medium confidence" in text.lower(), (
+        "an inferred successor must not claim the confidence of a stated one")
+    assert "based on lineage" in text.lower()
+    assert "engagement_dashboard" not in text.split("Lineage")[0], (
+        "a downstream consumer was offered as a replacement")
 
 
 def test_block_without_a_successor_says_so_instead_of_guessing():

@@ -207,6 +207,37 @@ def gen_datahub_context():
                         # no note, no lineage: we say so instead of guessing
                         "remediation": None},
         },
+        # Deprecated with NO note — nobody wrote down the replacement. The
+        # successor is inferred from lineage instead: a downstream table
+        # sharing this one's name stem at a higher version, which is the shape
+        # a v1 -> v2 backfill migration leaves behind. Lower confidence than a
+        # human statement, and the UI says so. The dashboard downstream is a
+        # deliberate decoy: consumers are not successors.
+        "session_metrics_v1": {
+            "urn": urn("bigquery", "session_metrics_v1"),
+            "name": "session_metrics_v1",
+            "platform": "bigquery", "owners": ["analytics@llmai.dev"],
+            "deprecated": True, "tags": ["deprecated", "product-analytics"],
+            "assertions_passing": None,
+            "upstream": [urn("kafka", "web_events")],
+            "downstream": [urn("bigquery", "session_metrics_v2"),
+                           urn("looker", "engagement_dashboard")],
+            "deprecation_note": "",
+            "verdict": {"action": "block",
+                        "reasons": ["dataset deprecated "
+                                    "(owners: analytics@llmai.dev)"],
+                        "reason_codes": ["deprecated_dataset"],
+                        "remediation": {
+                            "suggested_dataset": urn("bigquery",
+                                                     "session_metrics_v2"),
+                            "basis": "lineage",
+                            "confidence": "medium",
+                            "evidence": ("downstream of session_metrics_v1 and "
+                                         "shares its name stem "
+                                         "'session_metrics'"),
+                            "caveats": ["successor is unverified: schema "
+                                        "compatibility was not checked"]}},
+        },
         # Deprecated *with* a stated replacement — the case where a block turns
         # into a redirect the agent can act on within the same run.
         "user_events_v1": {
