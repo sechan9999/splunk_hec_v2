@@ -75,6 +75,7 @@ The agent never adjudicates its own access. That is the whole point.
 - **Guardrail + write-back** (`security/governance_bridge.py`): the decision table is a pure function (`decide()`) — trivially unit-testable — with a 5-minute context cache and a `GUARDRAIL_MODE` env (off/warn/enforce). Write-back is fire-and-forget: governance must never break the agent loop.
 - **The policy is a contract, not code** (`policies/governance.yaml` + `security/policy.py`): the rules live in versioned YAML with CODEOWNERS review, so changing what the agent may touch is a diff a reviewer reads rather than a code change buried in a function. The policy is *data* — a rule may only select among predicates the evaluator implements, so there is no path by which editing the file executes anything, and an unknown predicate is rejected at load. Every verdict carries the policy version that produced it. Rules are tiered: `catastrophic` findings (regulated data read with DLP off) refuse to be downgraded, while `serious` ones stay advisory unless an operator opts into enforce.
 - **Golden-case regression suite** (`tests/golden/`, 19 cases): real questions the guardrail got wrong become permanent fixtures, asserted on stable reason codes rather than on prose that is free to be reworded. A coverage gate fails the build if a policy rule ships without a case — we verified it bites by adding a throwaway rule and watching CI refuse it. A second suite pins the demo graph to the live engine, so the Streamlit demo can never drift into showing a verdict the product would not produce.
+- **Risk-tiered CI gating** (`.github/workflows/governance.yml`): the depth of validation follows what a change can break. Structural audit contracts run first and block unconditionally — a verdict that stops carrying its evidence, or a removed write-back, fails the merge no matter what the pass rate says. A diff touching `policies/` additionally runs the coverage gate and flags that CODEOWNERS approval is required. Verified end to end on PR #1: `verify` passed in 34s and `policy-change` correctly skipped in 7s because that PR did not touch the policy.
 - **Agent wiring**: `DataHubPlugin` registered in the platform's plugin registry; guardrail pre-flight hooked into the data-tool path; verdicts attached to results.
 - **Demo Mode**: the public Streamlit app simulates a 7-dataset context graph deliberately covering all three verdicts *and* all three successor-evidence paths — a stated deprecation note, an inference from lineage, and a deprecated table where no successor can be justified and the UI says so — so judges can experience block/warn/allow with zero setup. Live mode connects to a real GMS via `DATAHUB_GMS_URL` + token (st.secrets), with per-service connection checks in the sidebar.
 - **Method**: full PDCA cycle with docs in-repo (plan → design → implementation → gap analysis → report). Gap analysis scored 30 design items at 93% match after two iterations.
@@ -107,7 +108,6 @@ The agent never adjudicates its own access. That is the whole point.
 
 - **Drift → PR loop**: today we write governance *into* DataHub; the missing half is reading back out. A nightly scan for datasets newly deprecated or newly tagged as regulated would open a PR updating `policies/governance.yaml` and its golden cases, with the diff and reasoning attached — self-healing in the only sense that means anything, which is routing a detected change into a verifiable code review rather than into a silent behavior change.
 - **Schema-verified successors**: successor suggestions currently rank their evidence (deprecation note > lineage > naming) but explicitly do *not* claim schema compatibility, because we have no column-level metadata to check it with. Fetching schemas would let a suggestion say "drop-in" and mean it.
-- **Risk-tiered CI gating**: wiring the path filters we designed — docs get static checks, `policies/` changes must clear the golden suite, and anything touching the audit write-back is blocked unconditionally regardless of pass rate.
 - Real `upsertStructuredProperties` + DataHub timeline events for remediation history
 - Column-level guardrails (PII tags per field → selective masking instead of dataset-level warn)
 - Guardrail verdicts emitted as HEC events so Splunk can alert on block-rate spikes — closing the loop between both planes
@@ -126,6 +126,13 @@ Python · DataHub (MCP Server + GraphQL/GMS) · Streamlit · FastAPI · Splunk (
 
 ## Try it out
 
-- **Live demo (no setup):** https://splunkhec2.streamlit.app/ — open the **🧭 Data Context** tab, pick `legacy_metrics` to see a BLOCK verdict; then in **AI Agent Lab** run "Number of cumulative visitors" and expand the tool call to see the guardrail line.
-- **Repo:** https://github.com/sechan9999/splunk_hec_v2 — `pip install -r requirements.txt && streamlit run demo_app.py`
+**Live demo (no setup):** https://splunkhec2.streamlit.app/ → the **🧭 Data Context** tab. Three datasets tell the whole story in about thirty seconds:
+
+1. `user_events_v1` — BLOCK, and the agent is handed `user_events_v2` at **high** confidence because a human wrote the replacement into DataHub's deprecation note.
+2. `session_metrics_v1` — BLOCK with no note anywhere, so the successor is **inferred from lineage** and the confidence visibly drops to medium. There is a consumer dashboard downstream too; it is not offered, because consumers are not successors.
+3. `legacy_metrics` — BLOCK with nothing to go on, and the app says exactly that instead of guessing.
+
+Then pick `patients_pii`: an ALLOW that still carries a reason code, because a regulated read that leaves no audit trail is not really a governed one. Finally, in **AI Agent Lab**, run "Number of cumulative visitors" and expand the tool call to see the guardrail verdict riding along with the result.
+
+**Repo:** https://github.com/sechan9999/splunk_hec_v2 — `pip install -r requirements.txt && streamlit run demo_app.py`, then `pytest tests -q` for the 72 checks behind every claim above.
 - **Live DataHub path:** `datahub docker quickstart`, set `DATAHUB_GMS_URL=http://localhost:8080`, switch the sidebar to Live Mode → Check connections.
