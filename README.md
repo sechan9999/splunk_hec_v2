@@ -23,10 +23,17 @@ A local-first AI agent streams its own telemetry (cost, latency, DLP violations,
 
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://splunkhec2.streamlit.app/)
 
-## 🌐 Live Demo  https://youtu.be/kuqFPwAPKNI?si=aVqdTFuqSjBMXuP_
+## 🌐 Live Demo
 
 **👉 [https://splunkhec2.streamlit.app/](https://splunkhec2.streamlit.app/)** (v2)
 Original (v1): [https://splunkhec.streamlit.app/](https://splunkhec.streamlit.app/)
+
+**Videos** — two, because the project has two planes:
+
+| | Watch |
+|---|---|
+| 🧭 **DataHub governance** — a blocked query that tells you where to go instead | [youtu.be/0GBCgEzIF1g](https://youtu.be/0GBCgEzIF1g) |
+| 🔥 **Splunk closed loop** — telemetry in, auto-remediation back | [youtu.be/kuqFPwAPKNI](https://youtu.be/kuqFPwAPKNI) |
 
 The Streamlit Cloud deployment runs in **Demo Mode** by default — all 7 tabs work with simulated data and every figure is clearly labeled as synthetic. Switch to **Live Mode** in the sidebar to connect real Splunk/MCPAgents backends (advanced setup panel with per-service connection checks).
 
@@ -51,6 +58,10 @@ MCPAgents                    Splunk Platform
 ## 📦 Project Structure
 
 ### DataHub Layer (datahub-agent feature)
+
+> 🎬 **[2-minute walkthrough](https://youtu.be/0GBCgEzIF1g)** — the guardrail refusing a
+> deprecated dataset and handing the agent a successor, the confidence dropping when that
+> successor is inferred rather than stated, and an honest silence when none can be justified.
 
 The agent consults the **DataHub context graph** before acting and writes governance events back:
 

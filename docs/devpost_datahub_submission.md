@@ -3,7 +3,7 @@
 > Challenge track: **Production ML Protection Agents**
 > Live demo: https://splunkhec2.streamlit.app/ (Demo Mode, zero setup)
 > Repo: https://github.com/sechan9999/splunk_hec_v2 (Apache-2.0)
-> Video: https://youtu.be/kuqFPwAPKNI
+> Video: https://youtu.be/0GBCgEzIF1g
 
 ---
 
