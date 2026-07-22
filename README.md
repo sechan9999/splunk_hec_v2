@@ -99,7 +99,7 @@ Every verdict a human judges wrong becomes a permanent fixture in `tests/golden/
 A coverage gate fails the build when a policy rule ships without a case, and a second suite replays the demo graph through the live evaluator so the Streamlit demo can never drift into showing a verdict the product would not actually produce.
 
 ```bash
-pytest tests -q          # 72 checks, ~7s: policy contract, golden cases,
+pytest tests -q          # 74 checks, ~8s: policy contract, golden cases,
                          # audit contract, demo consistency, headless app smoke
 ```
 

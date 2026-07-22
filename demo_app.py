@@ -624,11 +624,16 @@ with tab_context:
     # the answer, and never apply it automatically.
     fix = ds["verdict"].get("remediation")
     if fix:
+        # Show the readable name; keep the exact URN one line down rather than
+        # dropping it, because that is what someone actually has to go query.
+        shown = fix.get("display_name") or fix["suggested_dataset"]
         st.success(
-            f"**Suggested instead:** `{fix['suggested_dataset']}` — "
+            f"**Suggested instead:** `{shown}` — "
             f"{fix['confidence']} confidence, based on {fix['basis'].replace('_', ' ')}.  \n"
             f"*{fix['evidence']}*"
             + ("  \n⚠ " + "; ".join(fix["caveats"]) if fix.get("caveats") else ""))
+        if fix["suggested_dataset"] != shown:
+            st.caption(f"URN: `{fix['suggested_dataset']}`")
     elif v_action == "block":
         st.info("No successor could be justified from the deprecation note, "
                 "lineage, or naming — so none is offered. Guessing here would "

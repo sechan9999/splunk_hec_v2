@@ -230,6 +230,7 @@ def gen_datahub_context():
                         "remediation": {
                             "suggested_dataset": urn("bigquery",
                                                      "session_metrics_v2"),
+                            "display_name": "session_metrics_v2",
                             "basis": "lineage",
                             "confidence": "medium",
                             "evidence": ("downstream of session_metrics_v1 and "
@@ -254,6 +255,7 @@ def gen_datahub_context():
                         "reason_codes": ["deprecated_dataset"],
                         "remediation": {
                             "suggested_dataset": "user_events_v2",
+                            "display_name": "user_events_v2",
                             "basis": "deprecation_note",
                             "confidence": "high",
                             "evidence": ("deprecation note: Frozen 2026-06-30. "

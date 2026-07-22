@@ -63,6 +63,8 @@ def test_demo_verdict_matches_live_policy(name, spec):
             assert got is not None, f"demo '{name}' should offer a successor"
             assert want["suggested_dataset"] == got["suggested_dataset"], name
             assert want["basis"] == got["basis"], name
+            if "display_name" in want:
+                assert want["display_name"] == got["display_name"], name
 
 
 def test_demo_graph_covers_every_verdict_type():

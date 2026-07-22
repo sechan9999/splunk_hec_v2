@@ -57,6 +57,30 @@ def test_every_verdict_states_the_policy_version_that_made_it():
         assert v.policy_version == get_policy().version
 
 
+def test_suggestion_carries_both_exact_and_readable_identifiers():
+    """The URN is what you query; the short name is what a human reads.
+
+    Losing the URN makes the audit record ambiguous across platforms; showing
+    it raw makes the UI unreadable. Both ship, and the short one must never
+    just be the URN again.
+    """
+    urn = "urn:li:dataset:(urn:li:dataPlatform:bigquery,session_metrics_v2,PROD)"
+    v = decide(ctx(name="session_metrics_v1", deprecated=True, downstream=[urn]),
+               mode="enforce")
+    fix = v.remediation
+    assert fix is not None
+    assert fix["suggested_dataset"] == urn, "exact identifier must survive"
+    assert fix["display_name"] == "session_metrics_v2"
+    assert "urn:li:" not in fix["display_name"], "display name is still a URN"
+
+
+def test_display_name_passes_through_bare_names_unchanged():
+    v = decide(ctx(deprecated=True,
+                   deprecation_note="Use metrics_v2 instead."), mode="enforce")
+    assert v.remediation["display_name"] == "metrics_v2"
+    assert v.remediation["suggested_dataset"] == "metrics_v2"
+
+
 def test_reasons_and_codes_stay_in_lockstep():
     """A code with no message is unreadable; a message with no code is untestable."""
     for context in (None, ctx(), ctx(deprecated=True, tags=["hipaa"]),

@@ -114,6 +114,9 @@ def test_lineage_inferred_successor_is_shown_with_lower_confidence():
     assert "medium confidence" in text.lower(), (
         "an inferred successor must not claim the confidence of a stated one")
     assert "based on lineage" in text.lower()
+    # the headline must read as a name, not a URN
+    headline = text.split("Suggested instead:")[1].split("—")[0]
+    assert "urn:li:" not in headline, f"raw URN in the headline: {headline!r}"
     assert "engagement_dashboard" not in text.split("Lineage")[0], (
         "a downstream consumer was offered as a replacement")
 

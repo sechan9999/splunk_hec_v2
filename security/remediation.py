@@ -48,7 +48,14 @@ class Suggestion:
     caveats: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict:
-        return {"suggested_dataset": self.dataset, "basis": self.basis,
+        # Both forms travel together on purpose. `suggested_dataset` stays the
+        # exact identifier — an audit record that says "use session_metrics_v2"
+        # is ambiguous across platforms, so the URN has to survive. But a URN is
+        # unreadable on screen, and every consumer shortening it themselves is
+        # how display logic drifts, so the short form ships from here.
+        return {"suggested_dataset": self.dataset,
+                "display_name": _name_of(self.dataset),
+                "basis": self.basis,
                 "confidence": self.confidence, "evidence": self.evidence,
                 "caveats": self.caveats}
 
